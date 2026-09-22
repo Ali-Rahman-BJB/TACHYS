@@ -1,96 +1,252 @@
-# TACHYS SCRIPTING
+# Panduan Kontribusi TACHYS
 
-**TACHYS** is a portable diagnostic toolkit designed to help technicians and interns perform basic computer component checks through the terminal.
+Terima kasih telah tertarik untuk berkontribusi pada **TACHYS**.
 
-* **Author:** Ali Rahman
-* **Repository:** https://github.com/Ali-Rahman-BJB/TACHYS
+TACHYS merupakan proyek scripting untuk membantu proses pemeriksaan dan diagnosis dasar komputer, terutama dalam kegiatan teknisi dan magang. Kontribusi dari siapa pun dipersilakan selama mengikuti panduan di bawah ini.
 
 ---
 
-## Installation
+## 1. Jenis Kontribusi
 
-### Clone the Repository
+Kamu dapat berkontribusi dalam berbagai bentuk, seperti:
 
-Open a terminal and run:
+* Memperbaiki bug atau kesalahan pada script.
+* Menambahkan fitur baru.
+* Meningkatkan kompatibilitas dengan sistem operasi tertentu.
+* Memperbaiki dokumentasi.
+* Meningkatkan struktur atau kualitas kode.
+* Menambahkan pemeriksaan atau informasi sistem baru.
+* Melaporkan bug atau masalah yang ditemukan.
+* Memberikan saran untuk pengembangan TACHYS.
+
+---
+
+## 2. Melaporkan Masalah
+
+Jika menemukan bug atau masalah, kamu dapat membuat **Issue** pada repository GitHub TACHYS.
+
+Sertakan informasi yang cukup agar masalah dapat dipahami dan direproduksi, seperti:
+
+* Sistem operasi yang digunakan.
+* Versi sistem operasi.
+* Versi TACHYS yang digunakan.
+* Langkah untuk menyebabkan masalah.
+* Pesan error yang muncul.
+* Screenshot atau output terminal jika diperlukan.
+
+Semakin lengkap informasi yang diberikan, semakin mudah masalah tersebut diperiksa.
+
+---
+
+## 3. Membuat Perubahan
+
+Sebelum melakukan perubahan, disarankan untuk menggunakan branch terpisah.
+
+Contoh:
 
 ```bash
-git clone https://github.com/Ali-Rahman-BJB/TACHYS.git
+git checkout -b fitur-nama-fitur
 ```
 
-Then enter the project directory:
+atau:
 
 ```bash
-cd TACHYS
+git checkout -b perbaikan-nama-masalah
+```
+
+Hindari melakukan perubahan langsung pada branch utama (`main`).
+
+---
+
+## 4. Commit
+
+Gunakan commit message yang jelas dan menjelaskan perubahan yang dilakukan.
+
+Contoh:
+
+```text
+Add system information check
+```
+
+```text
+Fix Linux hardware detection
+```
+
+```text
+Update installation instructions
+```
+
+Hindari commit message yang terlalu umum seperti:
+
+```text
+update
+```
+
+atau:
+
+```text
+fix
 ```
 
 ---
 
-## User Manual
+## 5. Pull Request
 
-### Linux
+Setelah perubahan selesai, silakan buat **Pull Request (PR)** ke repository TACHYS.
 
-TACHYS can be installed and launched from the terminal.
+Pull Request diperbolehkan untuk:
 
-1. Open a terminal.
-2. Navigate to the TACHYS project directory:
+* Fitur baru.
+* Perbaikan bug.
+* Perbaikan dokumentasi.
+* Perbaikan kompatibilitas.
+* Perubahan struktur atau kode.
 
-```bash
-cd TACHYS
+### Wajib menjelaskan perubahan
+
+Setiap Pull Request **harus menjelaskan perubahan yang dibuat**.
+
+Minimal sertakan:
+
+* Apa yang diubah?
+* Mengapa perubahan tersebut diperlukan?
+* Bagian atau file apa saja yang terdampak?
+* Bagaimana perubahan tersebut diuji?
+* Apakah terdapat perubahan yang berpotensi memengaruhi fitur lain?
+
+Contoh:
+
+```text
+## Perubahan
+
+Menambahkan pemeriksaan informasi CPU pada Linux.
+
+## Alasan
+
+Informasi CPU belum tersedia pada output TACHYS untuk Linux.
+
+## File yang Diubah
+
+- Tachys.sh
+
+## Pengujian
+
+Telah diuji pada Ubuntu dan informasi CPU berhasil ditampilkan.
+
+## Catatan
+
+Perubahan hanya memengaruhi bagian pemeriksaan CPU.
 ```
 
-3. Run the installation script:
+---
 
-```bash
-bash Install.sh
+## 6. Proses Review dan Persetujuan
+
+Pull Request yang dibuat oleh kontributor **tidak akan langsung digabungkan ke branch utama**.
+
+Setiap Pull Request akan diperiksa terlebih dahulu oleh maintainer TACHYS.
+
+Prosesnya:
+
+```text
+Kontributor
+    │
+    ▼
+Membuat perubahan
+    │
+    ▼
+Membuat Pull Request
+    │
+    ▼
+Menjelaskan perubahan
+    │
+    ▼
+Review oleh maintainer
+    │
+    ├── Perlu perubahan ──► Kontributor melakukan revisi
+    │                              │
+    │                              └────► Review kembali
+    │
+    └── Disetujui
+            │
+            ▼
+       Pull Request di-merge
 ```
 
-4. After `Install.sh` has been executed successfully, you can launch TACHYS by opening `Tachys.sh`.
+**Pull Request hanya akan di-merge setelah perubahan diperiksa dan disetujui oleh maintainer.**
 
-Depending on your Linux desktop environment, you can configure `Tachys.sh` to open in the terminal:
-
-**Right-click `Tachys.sh` → Open With → Other Application → Tachys (Run in Terminal)**
-
-You may also enable:
-
-> **Always use for this file type**
-
-This is optional and allows the script to be launched directly using the selected terminal application in the future.
+Dengan demikian, membuat Pull Request **tidak berarti perubahan akan otomatis diterima atau digabungkan**.
 
 ---
 
-### Windows
+## 7. Hak Maintainer
 
-Windows support is currently under development and testing.
+Maintainer berhak untuk:
 
-The available features and compatibility may vary depending on the Windows version and system configuration.
+* Meminta perubahan pada Pull Request.
+* Meminta penjelasan tambahan mengenai perubahan.
+* Menolak perubahan yang tidak sesuai dengan tujuan TACHYS.
+* Meminta kontributor memperbaiki kode atau dokumentasi.
+* Menggabungkan Pull Request setelah perubahan dianggap sesuai.
 
----
-
-## Information
-
-TACHYS is a scripting-based diagnostic toolkit designed to assist interns and technicians when performing basic checks on customer computers.
-
-The toolkit uses commands and system information provided by the operating system to retrieve diagnostic information, including hardware and system-related data.
-
-TACHYS is intended to make routine diagnostic procedures more practical and organized, particularly during computer maintenance or customer service activities.
+Keputusan penggabungan dilakukan dengan mempertimbangkan stabilitas, keamanan, kompatibilitas, dan tujuan pengembangan TACHYS.
 
 ---
 
-## Limitations
+## 8. Gaya Kode
 
-TACHYS is currently subject to the following limitations:
+Usahakan perubahan tetap mengikuti struktur dan gaya kode yang sudah digunakan dalam proyek.
 
-* Windows support has not been fully tested on Windows versions older than **Windows 11 Home**.
-* Linux support has currently been tested only on **Ubuntu**.
-* Compatibility with other Linux distributions has not yet been verified.
-* Some commands or diagnostic information may behave differently depending on the operating system and system configuration.
+Hindari:
 
-Additional testing and compatibility improvements may be added in future releases.
+* Mengubah kode yang tidak berkaitan dengan kontribusi.
+* Menghapus fitur tanpa alasan yang jelas.
+* Menambahkan dependensi yang tidak diperlukan.
+* Memasukkan informasi pribadi atau kredensial ke dalam repository.
+* Mengubah konfigurasi penting tanpa menjelaskan alasannya.
 
 ---
 
-## Project Status
+## 9. Pengujian
 
-**Development Status:** Experimental
+Sebelum membuat Pull Request, lakukan pengujian terhadap perubahan yang dibuat.
 
-TACHYS is currently being developed and tested. Users may encounter compatibility issues depending on their operating system, hardware, or system configuration.
+Jika memungkinkan, jelaskan:
+
+* Sistem operasi yang digunakan.
+* Perintah yang dijalankan.
+* Hasil yang diharapkan.
+* Hasil yang diperoleh.
+
+Jika perubahan hanya dapat diuji pada sistem tertentu, jelaskan keterbatasannya pada Pull Request.
+
+---
+
+## 10. Keamanan
+
+Jangan memasukkan informasi sensitif ke dalam repository, termasuk:
+
+* Password.
+* API key.
+* Token.
+* Private key.
+* Credential.
+* Informasi pribadi milik pengguna atau customer.
+
+Jika menemukan masalah keamanan, sebaiknya jangan langsung mempublikasikan informasi sensitif tersebut melalui Issue atau Pull Request.
+
+---
+
+## 11. Lisensi dan Kepemilikan Kontribusi
+
+Dengan mengirimkan Pull Request, kamu menyatakan bahwa perubahan yang kamu kontribusikan dapat digunakan dalam proyek TACHYS sesuai dengan lisensi yang berlaku pada repository.
+
+Pastikan kode, dokumentasi, atau aset yang kamu kontribusikan tidak melanggar hak cipta atau lisensi pihak lain.
+
+---
+
+## 12. Terima Kasih
+
+Setiap kontribusi, baik berupa kode, dokumentasi, laporan bug, maupun saran, sangat membantu perkembangan TACHYS.
+
+Terima kasih telah membantu mengembangkan TACHYS.
