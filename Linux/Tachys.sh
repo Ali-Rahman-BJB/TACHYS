@@ -48,7 +48,7 @@ BANNER
     echo -e "${C_SUB}Author      ${C_RST}: Ali Rahman"
     echo -e "${C_SUB}Student ID  ${C_RST}: 24020115 / 3085417291"
     echo -e "${C_SUB}Grade       ${C_RST}: Grade 12 - Computer and Network Engineering"
-    echo -e "${C_SUB}GitHub      ${C_RST}: https://github.com/Ali-Rahman-BJB"
+    echo -e "${C_SUB}Repository  ${C_RST}: https://github.com/Ali-Rahman-BJB/TACHYS"
     echo
 }
 run_keyboard_tester() {
@@ -200,51 +200,255 @@ run_audio_output_test() {
     return 1
 }
 
-run_touchpad_settings() {
-    echo "[INFO] Membuka pengaturan Touchpad ..."
+run_wifi_check() {
+    echo "[INFO] Memeriksa status WiFi Card ..."
     echo
 
-    # GNOME
-    if command -v gnome-control-center >/dev/null 2>&1; then
-        echo "[INFO] Menggunakan GNOME Settings."
-        gnome-control-center mouse >/dev/null 2>&1 &
-        return 0
+    local wifi_iface=""
+
+    if command -v iw >/dev/null 2>&1; then
+        wifi_iface="$(iw dev 2>/dev/null | awk '$1=="Interface"{print $2; exit}')"
     fi
 
-    # KDE Plasma
-    if command -v systemsettings >/dev/null 2>&1; then
-        echo "[INFO] Menggunakan KDE System Settings."
-        systemsettings kcm_touchpad >/dev/null 2>&1 &
-        return 0
+    if [ -z "$wifi_iface" ] && command -v nmcli >/dev/null 2>&1; then
+        wifi_iface="$(nmcli -t -f DEVICE,TYPE device 2>/dev/null | awk -F: '$2=="wifi"{print $1; exit}')"
     fi
 
-    if command -v systemsettings5 >/dev/null 2>&1; then
-        echo "[INFO] Menggunakan KDE System Settings 5."
-        systemsettings5 kcm_touchpad >/dev/null 2>&1 &
-        return 0
-    fi
-
-    # XFCE / desktop lain
-    if command -v xfce4-settings-manager >/dev/null 2>&1; then
-        echo "[INFO] Menggunakan XFCE Settings Manager."
-        xfce4-settings-manager >/dev/null 2>&1 &
-        return 0
-    fi
-
-    # Fallback: cek apakah touchpad ada, tapi GUI setting tidak tersedia
-    if command -v xinput >/dev/null 2>&1; then
-        echo "[WARN] Touchpad terdeteksi, tetapi pengaturan GUI tidak tersedia."
-        xinput list | grep -i "touchpad\|trackpad" || true
-        echo
-        echo "Coba install pengaturan desktop yang sesuai:"
-        echo "  Ubuntu/Debian: sudo apt install gnome-control-center"
-        echo "  KDE: sudo apt install systemsettings"
-        echo "  XFCE: sudo apt install xfce4-settings"
+    if [ -z "$wifi_iface" ]; then
+        echo "[WARN] Tidak ditemukan interface WiFi pada sistem ini."
+        echo "       (Wajar jika laptop/PC ini tidak memiliki WiFi card atau modul WiFi mati.)"
         return 1
     fi
 
-    echo "[ERROR] Tidak ditemukan pengaturan touchpad pada sistem ini."
-    return 1
+    echo "Interface WiFi : $wifi_iface"
+
+    if [ -f "/sys/class/net/$wifi_iface/operstate" ]; then
+        echo "Status Link    : $(cat "/sys/class/net/$wifi_iface/operstate")"
+    fi
+
+    if command -v rfkill >/dev/null 2>&1; then
+        local blocked
+        blocked="$(rfkill list wifi 2>/dev/null | grep -i "Soft blocked: yes\|Hard blocked: yes")"
+        if [ -n "$blocked" ]; then
+            echo "[WARN] WiFi dalam keadaan diblokir (rfkill):"
+            echo "$blocked"
+        fi
+    fi
+
+    if command -v nmcli >/dev/null 2>&1; then
+        local ssid signal
+        ssid="$(nmcli -t -f active,ssid dev wifi 2>/dev/null | awk -F: '$1=="yes"{print $2; exit}')"
+        signal="$(nmcli -t -f active,signal dev wifi 2>/dev/null | awk -F: '$1=="yes"{print $2; exit}')"
+
+        if [ -n "$ssid" ]; then
+            echo "SSID           : $ssid"
+        fi
+
+        if [ -n "$signal" ]; then
+            echo "Kekuatan Sinyal: ${signal}%"
+            if [ "$signal" -ge 70 ]; then
+                echo "Kualitas       : Kuat"
+            elif [ "$signal" -ge 40 ]; then
+                echo "Kualitas       : Sedang"
+            else
+                echo "Kualitas       : Lemah"
+            fi
+        else
+            echo "[WARN] Tidak sedang terhubung ke jaringan WiFi manapun."
+        fi
+    elif [ -f /proc/net/wireless ]; then
+        local line quality
+        line="$(grep "$wifi_iface" /proc/net/wireless)"
+        if [ -n "$line" ]; then
+            quality="$(echo "$line" | awk '{print $3}' | tr -d '.')"
+            echo "Link Quality   : ${quality} (skala /proc/net/wireless, umumnya maks ~70)"
+        else
+            echo "[WARN] Tidak ada data sinyal untuk $wifi_iface pada saat ini."
+        fi
+    else
+        echo "[WARN] Tidak dapat membaca kekuatan sinyal (nmcli/iw tidak tersedia)."
+        echo "       Coba install: sudo apt install network-manager"
+    fi
+
+    echo
+    return 0
+}
+
+run_process_monitor() {
+    echo "[INFO] Memeriksa proses antivirus / program berat yang berjalan ..."
+    echo
+
+    echo "--- 10 proses dengan penggunaan CPU tertinggi ---"
+    ps -eo pid,ppid,%cpu,%mem,comm --sort=-%cpu | head -n 11
+    echo
+
+    echo "--- Kemungkinan proses antivirus / security ---"
+    local av_patterns="clamd|clamav|freshclam|avast|avgd|avguard|kaspersky|kav|bitdefender|bdlogin|mcafee|sophos|comodo|eset|nod32|f-secure|rkhunter|chkrootkit|fail2ban"
+    local av_list
+    av_list="$(ps -eo pid,comm | grep -Ei "$av_patterns" | grep -v grep)"
+
+    if [ -n "$av_list" ]; then
+        echo "$av_list"
+    else
+        echo "Tidak ditemukan proses antivirus/security yang umum dikenali."
+    fi
+    echo
+
+    echo "--- Proses dengan pemakaian resource sangat berat (CPU > 20% atau MEM > 20%) ---"
+    local heavy_list
+    heavy_list="$(ps -eo pid,comm,%cpu,%mem --no-headers | awk '$3+0>20 || $4+0>20')"
+
+    if [ -z "$heavy_list" ]; then
+        echo "Tidak ada proses yang terdeteksi memakai resource sangat berat saat ini."
+        echo
+        return 0
+    fi
+
+    echo "PID     NAMA            %CPU   %MEM"
+    echo "$heavy_list"
+    echo
+
+    while true; do
+        read -r -p "Masukkan PID yang ingin dimatikan (kosongkan untuk selesai): " target_pid
+        if [ -z "$target_pid" ]; then
+            break
+        fi
+
+        if ! echo "$target_pid" | grep -Eq '^[0-9]+$'; then
+            echo "[ERROR] PID tidak valid, harus berupa angka."
+            echo
+            continue
+        fi
+
+        local pname
+        pname="$(ps -p "$target_pid" -o comm= 2>/dev/null)"
+
+        if [ -z "$pname" ]; then
+            echo "[ERROR] PID $target_pid tidak ditemukan (mungkin sudah berhenti)."
+            echo
+            continue
+        fi
+
+        read -r -p "Yakin ingin mematikan proses '$pname' (PID $target_pid)? [Y/N]: " confirm
+        case "$confirm" in
+            [Yy]|[Yy][Ee][Ss])
+                if kill "$target_pid" 2>/dev/null; then
+                    echo "[INFO] Proses '$pname' (PID $target_pid) berhasil dihentikan."
+                else
+                    echo "[ERROR] Gagal menghentikan proses. Mungkin perlu izin root (coba jalankan dengan sudo)."
+                fi
+                ;;
+            *)
+                echo "[INFO] Dilewati, proses tidak dimatikan."
+                ;;
+        esac
+        echo
+    done
+
+    return 0
+}
+
+run_disk_health() {
+    echo "[INFO] Memeriksa kesehatan HDD/SSD (SMART) ..."
+    echo
+
+    if ! command -v smartctl >/dev/null 2>&1; then
+        echo "[ERROR] Tool 'smartctl' tidak ditemukan di sistem ini."
+        echo "        Ini setara dengan HDD Sentinel di Windows, bagian dari paket 'smartmontools'."
+        echo
+        echo "Silakan install terlebih dahulu:"
+        echo "  Ubuntu/Debian : sudo apt install smartmontools"
+        echo "  Fedora        : sudo dnf install smartmontools"
+        echo "  Arch          : sudo pacman -S smartmontools"
+        echo
+        echo "Setelah terinstall, jalankan kembali menu ini."
+        return 1
+    fi
+
+    if [ "$(id -u)" -ne 0 ]; then
+        echo "[WARN] Tidak dijalankan sebagai root. Sebagian data SMART mungkin tidak lengkap"
+        echo "       atau device tidak terdeteksi sama sekali. Disarankan jalankan Tachys dengan sudo."
+        echo
+    fi
+
+    local scan_result
+    scan_result="$(smartctl --scan 2>/dev/null | awk '{print $1}')"
+
+    if [ -z "$scan_result" ]; then
+        echo "[WARN] Tidak ditemukan device disk yang bisa diperiksa smartctl."
+        echo "       Mencoba fallback ke daftar block device via lsblk ..."
+        if command -v lsblk >/dev/null 2>&1; then
+            scan_result="$(lsblk -dno NAME | awk '{print "/dev/"$1}')"
+        fi
+    fi
+
+    if [ -z "$scan_result" ]; then
+        echo "[ERROR] Tidak ada device disk yang terdeteksi sama sekali."
+        return 1
+    fi
+
+    local dev
+    for dev in $scan_result; do
+        echo "════════════════════════════════════════════════════════════"
+        echo "Device: $dev"
+        echo "════════════════════════════════════════════════════════════"
+
+        local info
+        info="$(smartctl -a "$dev" 2>/dev/null)"
+
+        if [ -z "$info" ]; then
+            echo "[WARN] Tidak bisa membaca data SMART dari $dev."
+            echo "       Kemungkinan butuh akses root (jalankan dengan sudo) atau"
+            echo "       device tidak mendukung SMART (mis. USB flashdisk / SD card)."
+            echo
+            continue
+        fi
+
+        local model
+        model="$(echo "$info" | grep -iE "Device Model|Model Number" | head -n 1 | sed 's/.*:\s*//')"
+        [ -n "$model" ] && echo "Model         : $model"
+
+        local health
+        health="$(echo "$info" | grep -i "overall-health self-assessment" | sed 's/.*:\s*//')"
+        if [ -n "$health" ]; then
+            echo "Status SMART  : $health"
+        else
+            echo "Status SMART  : tidak tersedia dari device ini"
+        fi
+
+        local temp
+        temp="$(echo "$info" | grep -iE "Temperature_Celsius|^Temperature:" | head -n 1 | awk '{print $NF, "C"}')"
+        [ -n "$temp" ] && echo "Suhu          : $temp"
+
+        local poweron
+        poweron="$(echo "$info" | grep -i "Power_On_Hours" | awk '{print $NF}')"
+        [ -n "$poweron" ] && echo "Power-On Hours: $poweron jam"
+
+        # SATA/HDD-specific: reallocated & pending sectors
+        local realloc pending
+        realloc="$(echo "$info" | grep -i "Reallocated_Sector_Ct" | awk '{print $NF}')"
+        pending="$(echo "$info" | grep -i "Current_Pending_Sector" | awk '{print $NF}')"
+        if [ -n "$realloc" ]; then
+            echo "Bad Sectors   : $realloc (realokasi), pending: ${pending:-0}"
+            if [ "$realloc" != "0" ] || { [ -n "$pending" ] && [ "$pending" != "0" ]; }; then
+                echo "[WARN] Terdeteksi bad sector! Pertimbangkan backup data segera."
+            fi
+        fi
+
+        # NVMe-specific: percentage used & available spare
+        local pct_used spare
+        pct_used="$(echo "$info" | grep -i "Percentage Used" | sed 's/.*:\s*//')"
+        spare="$(echo "$info" | grep -i "Available Spare:" | grep -v Threshold | sed 's/.*:\s*//')"
+        [ -n "$pct_used" ] && echo "Wear Level    : $pct_used terpakai dari usia pakai (NVMe)"
+        [ -n "$spare" ] && echo "Spare Blocks  : $spare tersisa (NVMe)"
+
+        echo
+    done
+
+    echo "[INFO] Pemeriksaan SMART selesai."
+    echo "       Status 'PASSED'/'OK' = sehat. Jika 'FAILED' atau ada banyak bad sector,"
+    echo "       segera backup data dan pertimbangkan penggantian disk."
+    return 0
 }
 
 show_menu() {
@@ -260,7 +464,9 @@ show_menu() {
     echo -e "${C_TEAL}  1. Keyboard Tester${C_RST}"
     echo -e "${C_TEAL}  2. Cek Kesehatan Baterai${C_RST}"
     echo -e "${C_TEAL}  3. Audio Output${C_RST}"
-    echo -e "${C_TEAL}  4. Touchpad${C_RST}"
+    echo -e "${C_TEAL}  4. Cek Status WiFi Card${C_RST}"
+    echo -e "${C_TEAL}  5. Cek Antivirus / Proses Berat${C_RST}"
+    echo -e "${C_TEAL}  6. Cek Kesehatan HDD/SSD (SMART)${C_RST}"
     echo -e "${C_TEAL}  0. Keluar${C_RST}"
     echo
     echo -e "${C_LINE}${LINE}${C_RST}"
@@ -271,7 +477,7 @@ while true; do
     show_banner
     show_menu
 
-    read -r -p "Masukkan pilihan [0-3]: " pilihan
+    read -r -p "Masukkan pilihan [0-6]: " pilihan
     echo
 
     case "$pilihan" in
@@ -285,7 +491,13 @@ while true; do
             run_audio_output_test
             ;;
         4)
-            run_touchpad_settings
+            run_wifi_check
+            ;;
+        5)
+            run_process_monitor
+            ;;
+        6)
+            run_disk_health
             ;;
         0)
             echo "[INFO] Keluar dari Tachys. Sampai jumpa!"

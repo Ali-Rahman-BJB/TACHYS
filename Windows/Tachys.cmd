@@ -49,7 +49,7 @@ echo.
 echo Author      : Ali Rahman
 echo Student ID  : 24020115 / 3085417291
 echo Grade       : Grade 12 - Computer and Network Engineering
-echo GitHub      : https://github.com/Ali-Rahman-BJB
+echo Repository  : https://github.com/Ali-Rahman-BJB/TACHYS
 echo.
 goto :eof
 
