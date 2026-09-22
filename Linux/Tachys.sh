@@ -271,11 +271,31 @@ run_wifi_check() {
     fi
 
     echo
+    echo "--- Uji konektivitas: Google.com ---"
+    if command -v ping >/dev/null 2>&1; then
+        if ! mkdir -p "$TMP_DIR"; then
+            echo "[WARN] Gagal membuat direktori sementara untuk log ping. Melanjutkan tanpa file log..."
+            ping -c 3 -W 2 google.com
+        else
+            local ping_log="$TMP_DIR/google_ping.txt"
+            if ping -c 3 -W 2 google.com >"$ping_log" 2>&1; then
+                echo "[INFO] Koneksi internet ke Google berhasil terdeteksi."
+                cat "$ping_log"
+            else
+                echo "[WARN] Ping ke Google gagal atau koneksi internet tidak tersedia."
+                cat "$ping_log"
+            fi
+        fi
+    else
+        echo "[WARN] Tidak dapat melakukan ping karena utilitas 'ping' tidak tersedia."
+    fi
+
+    echo
     return 0
 }
 
 run_process_monitor() {
-    echo "[INFO] Memeriksa proses antivirus / program berat yang berjalan ..."
+    echo "[INFO] Memeriksa program berat yang berjalan ..."
     echo
 
     echo "--- 10 proses dengan penggunaan CPU tertinggi ---"
@@ -461,12 +481,12 @@ show_menu() {
     echo -e "${C_LINE}${LINE}${C_RST}"
     echo -e "${C_SUB}        Pilih tool yang ingin dijalankan:${C_RST}"
     echo
-    echo -e "${C_TEAL}  1. Cek Kesehatan HDD/SSD (SMART)${C_RST}"
+    echo -e "${C_TEAL}  1. Cek Kesehatan HDD/SSD${C_RST}"
     echo -e "${C_TEAL}  2. Cek Status WiFi Card${C_RST}"
     echo -e "${C_TEAL}  3. Tes Keyboard${C_RST}"
-    echo -e "${C_TEAL}  4. Audio Output${C_RST}"
+    echo -e "${C_TEAL}  4. Tes Audio${C_RST}"
     echo -e "${C_TEAL}  5. Cek Kesehatan Baterai${C_RST}"
-    echo -e "${C_TEAL}  6. Cek Antivirus / Proses Berat${C_RST}"
+    echo -e "${C_TEAL}  6. Cek Program Berat${C_RST}"
     echo -e "${C_TEAL}  0. Keluar${C_RST}"
     echo
     echo -e "${C_LINE}${LINE}${C_RST}"

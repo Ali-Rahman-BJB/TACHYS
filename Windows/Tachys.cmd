@@ -67,6 +67,7 @@ echo   3. Keyboard Tester
 echo   4. Audio Output
 echo   5. Cek Kesehatan Baterai
 echo   6. Cek Antivirus / Proses Berat
+echo   7. Nonaktifkan Auto Start Control Panel
 echo   0. Keluar
 echo.
 echo ================================================================================
@@ -111,6 +112,15 @@ if not errorlevel 1 (
 for /f "usebackq tokens=* delims=" %%L in ("%TMP_DIR%\wifi.txt") do (
     echo %%L | findstr /i /c:"Name" /c:"State" /c:"SSID" /c:"Signal" /c:"Radio status" /c:"Receive rate" /c:"Transmit rate" >nul
     if not errorlevel 1 echo %%L
+)
+
+echo.
+echo [INFO] Uji konektivitas ke Google.com via ping ...
+ping -n 3 google.com
+if errorlevel 1 (
+    echo [WARN] Ping ke Google gagal atau koneksi internet tidak tersedia.
+) else (
+    echo [INFO] Koneksi internet ke Google berhasil terdeteksi.
 )
 
 echo.
@@ -207,6 +217,17 @@ powershell -NoProfile -Command "Write-Host '--- 10 proses dengan penggunaan CPU 
 exit /b 0
 
 :: ============================================================
+:: 7. NONAKTIFKAN AUTO START CONTROL PANEL
+:: ============================================================
+:run_disable_control_panel_startup
+echo [INFO] Mengecek entry startup Control Panel ...
+echo.
+
+powershell -NoProfile -Command "$removed = 0; $paths = @('HKCU:\Software\Microsoft\Windows\CurrentVersion\Run','HKLM:\Software\Microsoft\Windows\CurrentVersion\Run'); foreach ($p in $paths) { if (Test-Path $p) { $props = Get-ItemProperty -Path $p -ErrorAction SilentlyContinue; foreach ($name in ($props.PSObject.Properties | Where-Object { $_.Name -notmatch '^(PSPath|PSParentPath|PSChildName|PSProvider)$' } | Select-Object -ExpandProperty Name)) { $val = [string]($props.$name); if ($val -match 'control\.exe|control panel|^control$|shell:.*ControlPanel|explorer\.exe.*ControlPanel') { Remove-ItemProperty -Path $p -Name $name -ErrorAction SilentlyContinue; Write-Host ('[INFO] Menghapus startup entry: ' + $name); $removed++ } } } }; if ($removed -eq 0) { Write-Host '[WARN] Tidak ada entry startup Control Panel yang terdeteksi.'; Write-Host '       Biasanya ini berarti tidak ada aplikasi Control Panel yang otomatis dimulai saat startup.' }; Write-Host ''; Write-Host '[INFO] Untuk pengecekan lebih lanjut, buka Task Manager > Startup Apps.'"
+
+exit /b 0
+
+:: ============================================================
 :: CLEANUP
 :: ============================================================
 :cleanup
@@ -222,7 +243,7 @@ goto :eof
 call :show_banner
 call :show_menu
 
-set /p pilihan="Masukkan pilihan [0-6]: "
+set /p pilihan="Masukkan pilihan [0-7]: "
 echo.
 
 if "%pilihan%"=="1" (
@@ -237,6 +258,8 @@ if "%pilihan%"=="1" (
     call :run_battery_health
 ) else if "%pilihan%"=="6" (
     call :run_process_monitor
+) else if "%pilihan%"=="7" (
+    call :run_disable_control_panel_startup
 ) else if "%pilihan%"=="0" (
     echo [INFO] Keluar dari Tachys. Sampai jumpa!
     call :cleanup
