@@ -200,6 +200,53 @@ run_audio_output_test() {
     return 1
 }
 
+run_touchpad_settings() {
+    echo "[INFO] Membuka pengaturan Touchpad ..."
+    echo
+
+    # GNOME
+    if command -v gnome-control-center >/dev/null 2>&1; then
+        echo "[INFO] Menggunakan GNOME Settings."
+        gnome-control-center mouse >/dev/null 2>&1 &
+        return 0
+    fi
+
+    # KDE Plasma
+    if command -v systemsettings >/dev/null 2>&1; then
+        echo "[INFO] Menggunakan KDE System Settings."
+        systemsettings kcm_touchpad >/dev/null 2>&1 &
+        return 0
+    fi
+
+    if command -v systemsettings5 >/dev/null 2>&1; then
+        echo "[INFO] Menggunakan KDE System Settings 5."
+        systemsettings5 kcm_touchpad >/dev/null 2>&1 &
+        return 0
+    fi
+
+    # XFCE / desktop lain
+    if command -v xfce4-settings-manager >/dev/null 2>&1; then
+        echo "[INFO] Menggunakan XFCE Settings Manager."
+        xfce4-settings-manager >/dev/null 2>&1 &
+        return 0
+    fi
+
+    # Fallback: cek apakah touchpad ada, tapi GUI setting tidak tersedia
+    if command -v xinput >/dev/null 2>&1; then
+        echo "[WARN] Touchpad terdeteksi, tetapi pengaturan GUI tidak tersedia."
+        xinput list | grep -i "touchpad\|trackpad" || true
+        echo
+        echo "Coba install pengaturan desktop yang sesuai:"
+        echo "  Ubuntu/Debian: sudo apt install gnome-control-center"
+        echo "  KDE: sudo apt install systemsettings"
+        echo "  XFCE: sudo apt install xfce4-settings"
+        return 1
+    fi
+
+    echo "[ERROR] Tidak ditemukan pengaturan touchpad pada sistem ini."
+    return 1
+}
+
 show_menu() {
     local local C_SUB="\033[0;36m"
     local C_TEAL="\033[0;36m"
@@ -212,7 +259,8 @@ show_menu() {
     echo
     echo -e "${C_TEAL}  1. Keyboard Tester${C_RST}"
     echo -e "${C_TEAL}  2. Cek Kesehatan Baterai${C_RST}"
-    echo -e "${C_TEAL}  3. Audio Output Test${C_RST}"
+    echo -e "${C_TEAL}  3. Audio Output${C_RST}"
+    echo -e "${C_TEAL}  4. Touchpad${C_RST}"
     echo -e "${C_TEAL}  0. Keluar${C_RST}"
     echo
     echo -e "${C_LINE}${LINE}${C_RST}"
@@ -235,6 +283,9 @@ while true; do
             ;;
         3)
             run_audio_output_test
+            ;;
+        4)
+            run_touchpad_settings
             ;;
         0)
             echo "[INFO] Keluar dari Tachys. Sampai jumpa!"
