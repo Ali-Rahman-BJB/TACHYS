@@ -4,18 +4,9 @@ title TACHYS - Portable Diagnostic Toolkit (Windows)
 color 0A
 chcp 65001 >nul
 
-:: ============================================================
-:: SCRIPT_DIR = folder tempat file .bat ini berada
-:: FLASHDISK_ROOT = satu level di atas folder Batch (sesuaikan
-::                  jika struktur foldermu berbeda)
-:: ============================================================
 set "SCRIPT_DIR=%~dp0"
 for %%I in ("%SCRIPT_DIR%..") do set "FLASHDISK_ROOT=%%~fI"
 
-:: Path default keyboard tester (relatif terhadap flashdisk).
-:: Kalau ternyata exe-nya selalu ada di path tetap, tinggal ganti
-:: baris di bawah ini dengan path absolut kamu, contoh:
-::   set "KEYTEST_APP=D:\VSCODE\TACHYS\Application\WINDOWS\KeyboardTestUtility.exe"
 set "KEYTEST_APP=%FLASHDISK_ROOT%\Application\WINDOWS\KeyboardTestUtility.exe"
 
 set "TMP_DIR=%TEMP%\Tachys"
@@ -23,9 +14,6 @@ if not exist "%TMP_DIR%" mkdir "%TMP_DIR%" >nul 2>&1
 
 goto :main
 
-:: ============================================================
-:: BANNER
-:: ============================================================
 :show_banner
 cls
 echo ================================================================================
@@ -54,9 +42,6 @@ echo Repository  : https://github.com/Ali-Rahman-BJB/TACHYS
 echo.
 goto :eof
 
-:: ============================================================
-:: MENU
-:: ============================================================
 :show_menu
 echo ================================================================================
 echo         Pilih tool yang ingin dijalankan:
