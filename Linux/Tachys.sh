@@ -461,12 +461,12 @@ show_menu() {
     echo -e "${C_LINE}${LINE}${C_RST}"
     echo -e "${C_SUB}        Pilih tool yang ingin dijalankan:${C_RST}"
     echo
-    echo -e "${C_TEAL}  1. Keyboard Tester${C_RST}"
-    echo -e "${C_TEAL}  2. Cek Kesehatan Baterai${C_RST}"
-    echo -e "${C_TEAL}  3. Audio Output${C_RST}"
-    echo -e "${C_TEAL}  4. Cek Status WiFi Card${C_RST}"
-    echo -e "${C_TEAL}  5. Cek Antivirus / Proses Berat${C_RST}"
-    echo -e "${C_TEAL}  6. Cek Kesehatan HDD/SSD (SMART)${C_RST}"
+    echo -e "${C_TEAL}  1. Cek Kesehatan HDD/SSD (SMART)${C_RST}"
+    echo -e "${C_TEAL}  2. Cek Status WiFi Card${C_RST}"
+    echo -e "${C_TEAL}  3. Tes Keyboard${C_RST}"
+    echo -e "${C_TEAL}  4. Audio Output${C_RST}"
+    echo -e "${C_TEAL}  5. Cek Kesehatan Baterai${C_RST}"
+    echo -e "${C_TEAL}  6. Cek Antivirus / Proses Berat${C_RST}"
     echo -e "${C_TEAL}  0. Keluar${C_RST}"
     echo
     echo -e "${C_LINE}${LINE}${C_RST}"
@@ -482,22 +482,22 @@ while true; do
 
     case "$pilihan" in
         1)
-            run_keyboard_tester
+            run_disk_health
             ;;
         2)
-            run_battery_health
-            ;;
-        3)
-            run_audio_output_test
-            ;;
-        4)
             run_wifi_check
             ;;
+        3)
+            run_keyboard_tester
+            ;;
+        4)
+            run_audio_output_test
+            ;;
         5)
-            run_process_monitor
+            run_battery_health
             ;;
         6)
-            run_disk_health
+            run_process_monitor
             ;;
         0)
             echo "[INFO] Keluar dari Tachys. Sampai jumpa!"
