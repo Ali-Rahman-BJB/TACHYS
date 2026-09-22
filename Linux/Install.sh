@@ -1,9 +1,9 @@
 #!/bin/bash
 #
-# Pasang-Tachys-Launcher.sh
+# install.sh
 #
 # JALANKAN INI SEKALI SAJA per komputer baru (lewat terminal):
-#   bash Pasang-Tachys-Launcher.sh
+#   bash install.sh
 #
 # Fungsinya: mendaftarkan sebuah "aplikasi pembuka" bernama
 # "Tachys (Jalankan di Terminal)" ke komputer ini (bukan ke flashdisk).
