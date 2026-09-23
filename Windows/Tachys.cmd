@@ -154,8 +154,20 @@ if not exist "%KEYTEST_APP%" (
     echo [ERROR] File KeyboardTestUtility.exe tidak ditemukan di flashdisk ini.
     echo         Sudah dicoba beberapa lokasi umum, termasuk pencarian otomatis
     echo         ke seluruh drive %DRIVE_ROOT%, tapi file tidak ditemukan.
-    echo         Pastikan file KeyboardTestUtility.exe memang ada di dalam
-    echo         flashdisk yang sama dengan Tachys.cmd ini.
+    echo.
+    echo [INFO]  Jika file sebelumnya ada lalu hilang, kemungkinan file terhapus
+    echo         atau dikarantina oleh Windows Security (Windows Defender).
+    echo.
+    echo [SOLUSI]
+    echo 1. Unduh ulang aplikasinya melalui tautan berikut:
+    echo    https://www.softpedia.com/get/System/System-Info/Keyboard-Test-Utility.shtml#download
+    echo.
+    echo 2. Ekstrak/simpan file KeyboardTestUtility.exe ke dalam folder:
+    echo    %DRIVE_ROOT%\Application\WINDOWS
+    echo.
+    echo 3. Pastikan untuk menambahkan 'Exclusion' di Windows Security agar file
+    echo    tidak terhapus kembali secara otomatis.
+    echo.
     exit /b 1
 )
 
