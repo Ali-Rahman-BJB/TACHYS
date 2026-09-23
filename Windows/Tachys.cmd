@@ -4,14 +4,6 @@ title TACHYS - Portable Diagnostic Toolkit (Windows)
 color 0A
 chcp 65001 >nul
 
-rem Setelah dibuka dengan double-click atau Run as administrator, arahkan ke cmd /k
-rem agar jendela CMD tidak langsung menutup saat script selesai.
-if /i "%~1"=="__KEEP_OPEN__" goto :main
-if "%~1"=="" (
-    start "" "%ComSpec%" /k "%~f0" __KEEP_OPEN__
-    exit /b 0
-)
-
 set "SCRIPT_DIR=%~dp0"
 for %%I in ("%SCRIPT_DIR%..") do set "FLASHDISK_ROOT=%%~fI"
 
@@ -20,28 +12,36 @@ set "KEYTEST_APP=%FLASHDISK_ROOT%\Application\WINDOWS\KeyboardTestUtility.exe"
 set "TMP_DIR=%TEMP%\Tachys"
 if not exist "%TMP_DIR%" mkdir "%TMP_DIR%" >nul 2>&1
 
+rem Setelah dibuka dengan double-click atau Run as administrator, arahkan ke cmd /k
+rem agar jendela CMD tidak langsung menutup saat script selesai.
+if /i "%~1"=="__KEEP_OPEN__" goto :main
+if "%~1"=="" (
+    start "" "%ComSpec%" /k "%~f0" __KEEP_OPEN__
+    exit /b 0
+)
+
 goto :main
 
 :show_banner
 cls
-echo ================================================================================
+echo =====================================================
+echo   ████ █   █ █   █   ████   ████ ████  █████     █   
+echo  █     ██ ██ █  █    █   █ █     █   █   █      ██   
+echo   ███  █ █ █ ███     ████  █  ██ ████    █       █   
+echo      █ █   █ █  █    █     █   █ █  █    █       █   
+echo  ████  █   █ █   █   █      ███  █   █ █████    ███  
 echo.
-echo   _______  _______  _______  _______  _______  _______  _______  _______
-echo  ^|  _   _ ^|^|  _   _ ^|^|  _   _ ^|^|  _   _ ^|^|  _   _ ^|^|  _   _ ^|^|  _   _ ^|^|  _   _ ^|
-echo  ^| ^| ^| ^| ^|^| ^| ^| ^| ^|^| ^| ^| ^| ^|^| ^| ^| ^| ^|^| ^| ^| ^| ^|^| ^| ^| ^| ^|^| ^| ^| ^| ^|^| ^| ^| ^| ^|
-echo  ^| ^|_^| ^|_^|^| ^|_^| ^|_^|^| ^|_^| ^|_^|^| ^|_^| ^|_^|^| ^|_^| ^|_^|^| ^|_^| ^|_^|^| ^|_^| ^|_^|^| ^|_^| ^|_^|
-echo  ^|  ___  ^|^|  ___  ^|^|  ___  ^|^|  ___  ^|^|  ___  ^|^|  ___  ^|^|  ___  ^|^|  ___  ^|
-echo  ^| ^|   ^| ^|^| ^|   ^| ^|^| ^|   ^| ^|^| ^|   ^| ^|^| ^|   ^| ^|^| ^|   ^| ^|^| ^|   ^| ^|^| ^|   ^| ^|
-echo  ^| ^|___^| ^|^| ^|___^| ^|^| ^|___^| ^|^| ^|___^| ^|^| ^|___^| ^|^| ^|___^| ^|^| ^|___^| ^|^| ^|___^| ^|
-echo  ^|  ___  ^|^|  ___  ^|^|  ___  ^|^|  ___  ^|^|  ___  ^|^|  ___  ^|^|  ___  ^|^|  ___  ^|
-echo  ^| ^|   ^| ^|^| ^|   ^| ^|^| ^|   ^| ^|^| ^|   ^| ^|^| ^|   ^| ^|^| ^|   ^| ^|^| ^|   ^| ^|^| ^|   ^| ^|
-echo  ^| ^|   ^| ^|^| ^|   ^| ^|^| ^|   ^| ^|^| ^|   ^| ^|^| ^|   ^| ^|^| ^|   ^| ^|^| ^|   ^| ^|^| ^|   ^| ^|
-echo  ^| ^|___^| ^|^| ^|___^| ^|^| ^|___^| ^|^| ^|___^| ^|^| ^|___^| ^|^| ^|___^| ^|^| ^|___^| ^|^| ^|___^| ^|
-echo  ^|_______^|^|_______^|^|_______^|^|_______^|^|_______^|^|_______^|^|_______^|^|_______^|
+echo █   █  ███  ████  █████  ███  ████  █   █ ████   ███ 
+echo ██ ██ █   █ █   █   █   █   █ █   █ █   █ █   █ █   █
+echo █ █ █ █████ ████    █   █████ ████  █   █ ████  █████
+echo █   █ █   █ █  █    █   █   █ █     █   █ █  █  █   █
+echo █   █ █   █ █   █   █   █   █ █      ███  █   █ █   █
+echo =====================================================
 echo.
-echo ================================================================================
-echo         TACHYS - Portable Diagnostic Toolkit (Windows)
-echo ================================================================================
+echo ┌────────────────────────────────────────────┐
+echo │                T A C H Y S                 │
+echo │        Portable Diagnostic Toolkit         │
+echo └────────────────────────────────────────────┘
 echo.
 echo Author      : Ali Rahman
 echo Student ID  : 24020115 / 3085417291
@@ -51,7 +51,7 @@ echo.
 goto :eof
 
 :show_menu
-echo ================================================================================
+echo ------------------------------------------------
 echo         Pilih tool yang ingin dijalankan:
 echo.
 echo   1. Cek Kesehatan HDD/SSD (Storage Reliability)
@@ -63,7 +63,7 @@ echo   6. Cek Antivirus / Proses Berat
 echo   7. Nonaktifkan Auto Start Control Panel
 echo   0. Keluar
 echo.
-echo ================================================================================
+echo ------------------------------------------------
 echo.
 goto :eof
 
@@ -180,7 +180,7 @@ exit /b 0
 echo [INFO] Memeriksa kesehatan baterai ...
 echo.
 
-powershell -NoProfile -Command "$b = Get-CimInstance -ClassName Win32_Battery; if (-not $b) { Write-Host '[WARN] Tidak ditemukan baterai di sistem ini.'; Write-Host '       (Wajar jika ini adalah PC desktop tanpa baterai.)' } else { foreach ($x in $b) { Write-Host ('Status          : ' + $x.Status); Write-Host ('Estimasi charge : ' + $x.EstimatedChargeRemaining + '%%') } }"
+powershell -NoProfile -Command "$b = Get-CimInstance -ClassName Win32_Battery -ErrorAction SilentlyContinue; if ($b) { foreach ($x in $b) { Write-Host ('Status          : ' + $x.Status); Write-Host ('Estimasi charge : ' + $x.EstimatedChargeRemaining + '%%') } } else { try { $bs = Get-CimInstance -Namespace 'root\wmi' -ClassName BatteryStatus -ErrorAction Stop; $bf = Get-CimInstance -Namespace 'root\wmi' -ClassName BatteryFullChargedCapacity -ErrorAction SilentlyContinue; if ($bs) { foreach ($x in $bs) { $statusText = if ($x.Charging) { 'Charging' } elseif ($x.Discharging) { 'Discharging' } elseif ($x.PowerOnline) { 'Tersambung AC / Terisi Penuh' } else { 'Tidak diketahui' }; $pct = if ($bf -and $bf.FullChargedCapacity -gt 0) { [math]::Round(($x.RemainingCapacity / $bf.FullChargedCapacity) * 100,0) } else { $null }; Write-Host ('Status          : ' + $statusText); if ($null -ne $pct) { Write-Host ('Estimasi charge : ' + $pct + '%%') } } } else { Write-Host '[WARN] Tidak ditemukan baterai di sistem ini.'; Write-Host '       (Wajar jika ini adalah PC desktop tanpa baterai.)' } } catch { Write-Host '[WARN] Tidak ditemukan baterai di sistem ini.'; Write-Host '       (Wajar jika ini adalah PC desktop tanpa baterai, atau driver baterai tidak melaporkan data lewat WMI pada perangkat ini.)' } }"
 
 echo.
 echo [INFO] Membuat laporan kesehatan baterai lengkap (powercfg) ...
@@ -265,8 +265,7 @@ if "%pilihan%"=="1" (
 ) else if "%pilihan%"=="0" (
     echo [INFO] Keluar dari Tachys. Sampai jumpa!
     call :cleanup
-    call :wait_for_key
-    exit /b 0
+    exit 0
 ) else (
     echo [ERROR] Pilihan tidak dikenali: %pilihan%
 )
