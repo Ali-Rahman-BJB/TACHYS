@@ -1,68 +1,68 @@
-# Panduan Kontribusi TACHYS
+# TACHYS Contribution Guide
 
-Terima kasih telah tertarik untuk berkontribusi pada **TACHYS**.
+Thank you for your interest in contributing to **TACHYS**.
 
-TACHYS merupakan proyek scripting untuk membantu proses pemeriksaan dan diagnosis dasar komputer, terutama dalam kegiatan teknisi dan magang. Kontribusi dari siapa pun dipersilakan selama mengikuti panduan di bawah ini.
-
----
-
-## 1. Jenis Kontribusi
-
-Kamu dapat berkontribusi dalam berbagai bentuk, seperti:
-
-* Memperbaiki bug atau kesalahan pada script.
-* Menambahkan fitur baru.
-* Meningkatkan kompatibilitas dengan sistem operasi tertentu.
-* Memperbaiki dokumentasi.
-* Meningkatkan struktur atau kualitas kode.
-* Menambahkan pemeriksaan atau informasi sistem baru.
-* Melaporkan bug atau masalah yang ditemukan.
-* Memberikan saran untuk pengembangan TACHYS.
+TACHYS is a scripting project designed to support basic computer inspection and diagnosis, especially for technician and internship activities. Contributions from anyone are welcome as long as they follow the guidelines below.
 
 ---
 
-## 2. Melaporkan Masalah
+## 1. Types of Contributions
 
-Jika menemukan bug atau masalah, kamu dapat membuat **Issue** pada repository GitHub TACHYS.
+You can contribute in various ways, such as:
 
-Sertakan informasi yang cukup agar masalah dapat dipahami dan direproduksi, seperti:
-
-* Sistem operasi yang digunakan.
-* Versi sistem operasi.
-* Versi TACHYS yang digunakan.
-* Langkah untuk menyebabkan masalah.
-* Pesan error yang muncul.
-* Screenshot atau output terminal jika diperlukan.
-
-Semakin lengkap informasi yang diberikan, semakin mudah masalah tersebut diperiksa.
+* Fixing bugs or errors in scripts.
+* Adding new features.
+* Improving compatibility with specific operating systems.
+* Improving documentation.
+* Improving code structure or quality.
+* Adding new system checks or information.
+* Reporting bugs or issues found.
+* Providing suggestions for TACHYS development.
 
 ---
 
-## 3. Membuat Perubahan
+## 2. Reporting Issues
 
-Sebelum melakukan perubahan, disarankan untuk menggunakan branch terpisah.
+If you find a bug or issue, you can create an **Issue** in the TACHYS GitHub repository.
 
-Contoh:
+Please include enough information so the problem can be understood and reproduced, such as:
+
+* Operating system used.
+* Operating system version.
+* TACHYS version used.
+* Steps to reproduce the problem.
+* Error message shown.
+* Screenshots or terminal output if necessary.
+
+The more complete the information provided, the easier the issue will be to review.
+
+---
+
+## 3. Making Changes
+
+Before making changes, it is recommended to use a separate branch.
+
+Examples:
 
 ```bash
-git checkout -b fitur-nama-fitur
+git checkout -b feature-feature-name
 ```
 
-atau:
+or:
 
 ```bash
-git checkout -b perbaikan-nama-masalah
+git checkout -b fix-issue-name
 ```
 
-Hindari melakukan perubahan langsung pada branch utama (`main`).
+Avoid making direct changes to the main branch (`main`).
 
 ---
 
 ## 4. Commit
 
-Gunakan commit message yang jelas dan menjelaskan perubahan yang dilakukan.
+Use clear commit messages that describe the changes made.
 
-Contoh:
+Examples:
 
 ```text
 Add system information check
@@ -76,13 +76,13 @@ Fix Linux hardware detection
 Update installation instructions
 ```
 
-Hindari commit message yang terlalu umum seperti:
+Avoid overly generic commit messages such as:
 
 ```text
 update
 ```
 
-atau:
+or:
 
 ```text
 fix
@@ -92,161 +92,163 @@ fix
 
 ## 5. Pull Request
 
-Setelah perubahan selesai, silakan buat **Pull Request (PR)** ke repository TACHYS.
+Once the changes are complete, please create a **Pull Request (PR)** to the TACHYS repository.
 
-Pull Request diperbolehkan untuk:
+Pull Requests are allowed for:
 
-* Fitur baru.
-* Perbaikan bug.
-* Perbaikan dokumentasi.
-* Perbaikan kompatibilitas.
-* Perubahan struktur atau kode.
+* New features.
+* Bug fixes.
+* Documentation improvements.
+* Compatibility fixes.
+* Structural or code changes.
 
-### Wajib menjelaskan perubahan
+### Required change explanation
 
-Setiap Pull Request **harus menjelaskan perubahan yang dibuat**.
+Each Pull Request **must explain the changes made**.
 
-Minimal sertakan:
+At minimum, include:
 
-* Apa yang diubah?
-* Mengapa perubahan tersebut diperlukan?
-* Bagian atau file apa saja yang terdampak?
-* Bagaimana perubahan tersebut diuji?
-* Apakah terdapat perubahan yang berpotensi memengaruhi fitur lain?
+* What was changed?
+* Why is this change needed?
+* Which parts or files were affected?
+* How was the change tested?
+* Are there any changes that could affect other features?
 
-Contoh:
+Example:
 
 ```text
-## Perubahan
+## Changes
 
-Menambahkan pemeriksaan informasi CPU pada Linux.
+Added CPU information checks on Linux.
 
-## Alasan
+## Reason
 
-Informasi CPU belum tersedia pada output TACHYS untuk Linux.
+CPU information was not available in the TACHYS output for Linux.
 
-## File yang Diubah
+## Files Changed
 
 - Tachys.sh
 
-## Pengujian
+## Testing
 
-Telah diuji pada Ubuntu dan informasi CPU berhasil ditampilkan.
+Tested on Ubuntu and the CPU information was successfully displayed.
 
-## Catatan
+## Notes
 
-Perubahan hanya memengaruhi bagian pemeriksaan CPU.
+This change only affects the CPU check section.
 ```
 
 ---
 
-## 6. Proses Review dan Persetujuan
+## 6. Review and Approval Process
 
-Pull Request yang dibuat oleh kontributor **tidak akan langsung digabungkan ke branch utama**.
+Pull Requests created by contributors **will not be merged directly into the main branch**.
 
-Setiap Pull Request akan diperiksa terlebih dahulu oleh maintainer TACHYS.
+Each Pull Request will first be reviewed by a TACHYS maintainer.
 
-Prosesnya:
+The process is as follows:
 
 ```text
-Kontributor
+Contributor
     │
     ▼
-Membuat perubahan
+Makes changes
     │
     ▼
-Membuat Pull Request
+Creates Pull Request
     │
     ▼
-Menjelaskan perubahan
+Explains changes
     │
     ▼
-Review oleh maintainer
+Maintainer review
     │
-    ├── Perlu perubahan ──► Kontributor melakukan revisi
-    │                              │
-    │                              └────► Review kembali
+    ├── Needs changes ──► Contributor revises
+    │                        │
+    │                        └────► Review again
     │
-    └── Disetujui
+    └── Approved
             │
             ▼
-       Pull Request di-merge
+      Pull Request merged
 ```
 
-**Pull Request hanya akan di-merge setelah perubahan diperiksa dan disetujui oleh maintainer.**
+**A Pull Request will only be merged after the change has been reviewed and approved by the maintainer.**
 
-Dengan demikian, membuat Pull Request **tidak berarti perubahan akan otomatis diterima atau digabungkan**.
-
----
-
-## 7. Hak Maintainer
-
-Maintainer berhak untuk:
-
-* Meminta perubahan pada Pull Request.
-* Meminta penjelasan tambahan mengenai perubahan.
-* Menolak perubahan yang tidak sesuai dengan tujuan TACHYS.
-* Meminta kontributor memperbaiki kode atau dokumentasi.
-* Menggabungkan Pull Request setelah perubahan dianggap sesuai.
-
-Keputusan penggabungan dilakukan dengan mempertimbangkan stabilitas, keamanan, kompatibilitas, dan tujuan pengembangan TACHYS.
+Therefore, creating a Pull Request **does not mean the change will automatically be accepted or merged**.
 
 ---
 
-## 8. Gaya Kode
+## 7. Maintainer Rights
 
-Usahakan perubahan tetap mengikuti struktur dan gaya kode yang sudah digunakan dalam proyek.
+Maintainers have the right to:
 
-Hindari:
+* Request changes to a Pull Request.
+* Ask for additional explanation about the change.
+* Reject changes that do not align with TACHYS goals.
+* Ask contributors to fix code or documentation.
+* Merge a Pull Request after the change is deemed suitable.
 
-* Mengubah kode yang tidak berkaitan dengan kontribusi.
-* Menghapus fitur tanpa alasan yang jelas.
-* Menambahkan dependensi yang tidak diperlukan.
-* Memasukkan informasi pribadi atau kredensial ke dalam repository.
-* Mengubah konfigurasi penting tanpa menjelaskan alasannya.
-
----
-
-## 9. Pengujian
-
-Sebelum membuat Pull Request, lakukan pengujian terhadap perubahan yang dibuat.
-
-Jika memungkinkan, jelaskan:
-
-* Sistem operasi yang digunakan.
-* Perintah yang dijalankan.
-* Hasil yang diharapkan.
-* Hasil yang diperoleh.
-
-Jika perubahan hanya dapat diuji pada sistem tertentu, jelaskan keterbatasannya pada Pull Request.
+Merge decisions are made by considering stability, security, compatibility, and development goals of TACHYS.
 
 ---
 
-## 10. Keamanan
+## 8. Code Style
 
-Jangan memasukkan informasi sensitif ke dalam repository, termasuk:
+Please keep changes aligned with the structure and style already used in the project.
 
-* Password.
-* API key.
-* Token.
-* Private key.
-* Credential.
-* Informasi pribadi milik pengguna atau customer.
+Avoid:
 
-Jika menemukan masalah keamanan, sebaiknya jangan langsung mempublikasikan informasi sensitif tersebut melalui Issue atau Pull Request.
-
----
-
-## 11. Lisensi dan Kepemilikan Kontribusi
-
-Dengan mengirimkan Pull Request, kamu menyatakan bahwa perubahan yang kamu kontribusikan dapat digunakan dalam proyek TACHYS sesuai dengan lisensi yang berlaku pada repository.
-
-Pastikan kode, dokumentasi, atau aset yang kamu kontribusikan tidak melanggar hak cipta atau lisensi pihak lain.
+* Changing code unrelated to the contribution.
+* Removing features without a clear reason.
+* Adding unnecessary dependencies.
+* Including personal information or credentials in the repository.
+* Changing important configuration without explaining why.
 
 ---
 
-## 12. Terima Kasih
+## 9. Testing
 
-Setiap kontribusi, baik berupa kode, dokumentasi, laporan bug, maupun saran, sangat membantu perkembangan TACHYS.
+Before creating a Pull Request, test the changes you have made.
 
-Terima kasih telah membantu mengembangkan TACHYS.
+If possible, explain:
+
+* Operating system used.
+* Command executed.
+* Expected result.
+* Result obtained.
+
+If the change can only be tested on a specific system, explain the limitation in the Pull Request.
+
+---
+
+## 10. Security
+
+Do not include sensitive information in the repository, including:
+
+* Passwords.
+* API keys.
+* Tokens.
+* Private keys.
+* Credentials.
+* User or customer personal information.
+
+If you discover a security issue, do not directly publish sensitive information through an Issue or Pull Request.
+
+---
+
+## 11. License and Ownership of Contributions
+
+By submitting a Pull Request, you state that the changes you contribute can be used in the TACHYS project in accordance with the license applied to the repository.
+
+Make sure the code, documentation, or assets you contribute do not violate copyright or licensing rights of others.
+
+---
+
+## 12. Acknowledgment
+
+Every contribution, whether code, documentation, bug reports, or suggestions, greatly helps the development of TACHYS.
+
+Thank you to SMK PGRI 1 Martapura, Bandung Computer Banjarbaru, and all fellow internship colleagues for the support, guidance, and inspiration that continue to motivate the growth of this project.
+
+Thank you for helping develop TACHYS.

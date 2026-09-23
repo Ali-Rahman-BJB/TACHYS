@@ -38,10 +38,9 @@ echo █   █ █   █ █  █    █   █   █ █     █   █ █  █ 
 echo █   █ █   █ █   █   █   █   █ █      ███  █   █ █   █
 echo =====================================================
 echo.
-echo ┌────────────────────────────────────────────┐
-echo │                T A C H Y S                 │
-echo │        Portable Diagnostic Toolkit         │
-echo └────────────────────────────────────────────┘
+echo -------------------------------------------------
+echo       TACHYS - Portable Diagnostic Toolkit             
+echo -------------------------------------------------
 echo.
 echo Author      : Ali Rahman
 echo Student ID  : 24020115 / 3085417291
