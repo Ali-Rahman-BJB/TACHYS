@@ -156,7 +156,7 @@ if not exist "%KEYTEST_APP%" (
     echo         ke seluruh drive %DRIVE_ROOT%, tapi file tidak ditemukan.
     echo.
     echo [INFO]  Jika file sebelumnya ada lalu hilang, kemungkinan file terhapus
-    echo         atau dikarantina oleh Windows Security (Windows Defender).
+    echo         atau dikarantina oleh Windows Security ^(Windows Defender^).
     echo.
     echo [SOLUSI]
     echo 1. Unduh ulang aplikasinya melalui tautan berikut:
@@ -325,7 +325,7 @@ if "%pilihan%"=="1" (
 ) else if "%pilihan%"=="s" (
     call :run_open_defender_settings
 ) else if "%pilihan%"=="0" (
-    echo [INFO] Keluar dari Tachys. Sampai jumpa!
+    echo [INFO] Keluar dari Tachys. Sampai jumpa^!
     call :cleanup
     exit 0
 ) else (
