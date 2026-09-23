@@ -187,6 +187,30 @@ if errorlevel 1 (
     exit /b 1
 )
 
+echo [INFO] Memeriksa status Windows Security ^(Real-Time Protection^) ...
+set "RTP_STATUS=2"
+for /f %%R in ('powershell -NoProfile -Command "try { $s = Get-MpComputerStatus -ErrorAction Stop; if ($s.RealTimeProtectionEnabled) { Write-Output 1 } else { Write-Output 0 } } catch { Write-Output 2 }" 2^>nul') do set "RTP_STATUS=%%R"
+
+if "%RTP_STATUS%"=="1" (
+    echo.
+    echo [PERINGATAN] Real-Time Protection Windows Security sedang AKTIF.
+    echo              KeyboardTestUtility.exe dibatalkan untuk mencegah file
+    echo              dihapus/dikarantina otomatis oleh Windows Defender saat berjalan.
+    echo.
+    echo [SOLUSI] Nonaktifkan sementara Real-Time Protection ^(menu 's' di
+    echo          menu utama^), atau tambahkan Exclusion untuk folder %TMP_DIR%
+    echo          dan folder aplikasi ini, lalu coba jalankan kembali.
+    echo.
+    exit /b 1
+)
+
+if "%RTP_STATUS%"=="2" (
+    echo [WARN] Tidak bisa memastikan status Real-Time Protection ^(mungkin bukan Windows Defender/AV lain, atau perlu Administrator^).
+    echo        Tachys akan tetap mencoba menjalankan Keyboard Tester, tapi jika file
+    echo        tiba-tiba hilang/dihapus, kemungkinan penyebabnya adalah antivirus.
+    echo.
+)
+
 echo [INFO] Menjalankan Keyboard Tester ...
 start "" /wait "%TMP_DIR%\KeyboardTestUtility.exe"
 if errorlevel 1 (
