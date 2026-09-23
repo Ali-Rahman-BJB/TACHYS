@@ -75,9 +75,9 @@ echo █   █ █   █ █  █    █   █   █ █     █   █ █  █ 
 echo █   █ █   █ █   █   █   █   █ █      ███  █   █ █   █
 echo =====================================================
 echo.
-echo -------------------------------------------------
-echo       TACHYS - Portable Diagnostic Toolkit             
-echo -------------------------------------------------
+echo -----------------------------------------------------
+echo    TACHYS - Portable Diagnostic Toolkit (Windows)            
+echo -----------------------------------------------------
 echo.
 echo Author      : Ali Rahman
 echo Student ID  : 24020115 / 3085417291
@@ -87,20 +87,20 @@ echo.
 goto :eof
 
 :show_menu
-echo ------------------------------------------------
+echo -----------------------------------------------------
 echo         Pilih tool yang ingin dijalankan:
 echo.
-echo   s. Buka Halaman Virus ^& threat protection (Windows Security)
-echo   1. Cek Kesehatan HDD/SSD (Storage Reliability)
+echo  [s] Buka Halaman Virus ^& threat protection (Windows Security)
+echo   1. Cek Kesehatan HDD/SSD
 echo   2. Cek Status WiFi Card
-echo   3. Keyboard Tester
-echo   4. Audio Output
+echo   3. Tes Keyboard
+echo   4. Tes Audio
 echo   5. Cek Kesehatan Baterai
-echo   6. Cek Antivirus / Proses Berat
-echo   7. Nonaktifkan Auto Start Control Panel
+echo   6. Cek Program Berat  
+echo   7. Nonaktifkan Fast Startup Control Panel
 echo   0. Keluar
 echo.
-echo ------------------------------------------------
+echo -----------------------------------------------------
 echo.
 goto :eof
 
