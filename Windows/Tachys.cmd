@@ -5,9 +5,32 @@ color 0A
 chcp 65001 >nul
 
 set "SCRIPT_DIR=%~dp0"
-for %%I in ("%SCRIPT_DIR%..") do set "FLASHDISK_ROOT=%%~fI"
+if "%SCRIPT_DIR:~-1%"=="\" set "SCRIPT_DIR=%SCRIPT_DIR:~0,-1%"
+set "DRIVE_ROOT=%~d0\"
 
-set "KEYTEST_APP=%FLASHDISK_ROOT%\Application\WINDOWS\KeyboardTestUtility.exe"
+rem --- Cari KeyboardTestUtility.exe di beberapa kemungkinan lokasi umum ---
+rem    Ini membuat lokasi flashdisk fleksibel: tidak peduli apakah folder
+rem    Application berada sejajar dengan script, satu folder di atas,
+rem    langsung di root drive, atau di dalam folder TACHYS di root.
+set "KEYTEST_APP="
+for %%P in (
+    "%SCRIPT_DIR%\Application\WINDOWS\KeyboardTestUtility.exe"
+    "%SCRIPT_DIR%\..\Application\WINDOWS\KeyboardTestUtility.exe"
+    "%DRIVE_ROOT%Application\WINDOWS\KeyboardTestUtility.exe"
+    "%DRIVE_ROOT%TACHYS\Application\WINDOWS\KeyboardTestUtility.exe"
+) do (
+    if not defined KEYTEST_APP if exist "%%~fP" set "KEYTEST_APP=%%~fP"
+)
+
+rem --- Fallback terakhir: cari otomatis ke seluruh flashdisk kalau belum ketemu ---
+if not defined KEYTEST_APP (
+    for /f "delims=" %%F in ('dir "%DRIVE_ROOT%KeyboardTestUtility.exe" /s /b 2^>nul') do (
+        if not defined KEYTEST_APP set "KEYTEST_APP=%%~fF"
+    )
+)
+
+rem Jika tetap tidak ketemu, pakai path default lama supaya pesan error tetap informatif
+if not defined KEYTEST_APP set "KEYTEST_APP=%DRIVE_ROOT%TACHYS\Application\WINDOWS\KeyboardTestUtility.exe"
 
 set "TMP_DIR=%TEMP%\Tachys"
 if not exist "%TMP_DIR%" mkdir "%TMP_DIR%" >nul 2>&1
@@ -127,10 +150,11 @@ exit /b 0
 echo [INFO] Menyiapkan Keyboard Tester ...
 
 if not exist "%KEYTEST_APP%" (
-    echo [ERROR] File KeyboardTestUtility.exe tidak ditemukan di:
-    echo         %KEYTEST_APP%
-    echo         Pastikan struktur folder flashdisk masih sesuai:
-    echo         TACHYS\Application\WINDOWS\KeyboardTestUtility.exe
+    echo [ERROR] File KeyboardTestUtility.exe tidak ditemukan di flashdisk ini.
+    echo         Sudah dicoba beberapa lokasi umum, termasuk pencarian otomatis
+    echo         ke seluruh drive %DRIVE_ROOT%, tapi file tidak ditemukan.
+    echo         Pastikan file KeyboardTestUtility.exe memang ada di dalam
+    echo         flashdisk yang sama dengan Tachys.cmd ini.
     exit /b 1
 )
 
@@ -215,7 +239,7 @@ exit /b 0
 echo [INFO] Mengecek entry startup Control Panel ...
 echo.
 
-powershell -NoProfile -Command "$removed = 0; $paths = @('HKCU:\Software\Microsoft\Windows\CurrentVersion\Run','HKLM:\Software\Microsoft\Windows\CurrentVersion\Run'); foreach ($p in $paths) { if (Test-Path $p) { $props = Get-ItemProperty -Path $p -ErrorAction SilentlyContinue; foreach ($name in ($props.PSObject.Properties | Where-Object { $_.Name -notmatch '^(PSPath|PSParentPath|PSChildName|PSProvider)$' } | Select-Object -ExpandProperty Name)) { $val = [string]($props.$name); if ($val -match 'control\.exe|control panel|^control$|shell:.*ControlPanel|explorer\.exe.*ControlPanel') { Remove-ItemProperty -Path $p -Name $name -ErrorAction SilentlyContinue; Write-Host ('[INFO] Menghapus startup entry: ' + $name); $removed++ } } } }; if ($removed -eq 0) { Write-Host '[WARN] Tidak ada entry startup Control Panel yang terdeteksi.'; Write-Host '       Biasanya ini berarti tidak ada aplikasi Control Panel yang otomatis dimulai saat startup.' }; Write-Host ''; Write-Host '[INFO] Untuk pengecekan lebih lanjut, buka Task Manager > Startup Apps.'"
+powershell -NoProfile -Command "$removed = 0; $found = @(); $paths = @('HKCU:\Software\Microsoft\Windows\CurrentVersion\Run','HKLM:\Software\Microsoft\Windows\CurrentVersion\Run','HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\StartupApproved\Run'); foreach ($p in $paths) { if (Test-Path $p) { $items = Get-ChildItem -Path $p -ErrorAction SilentlyContinue; foreach ($item in $items) { $props = Get-ItemProperty -Path $item.PSPath -ErrorAction SilentlyContinue; if (-not $props) { continue }; foreach ($name in ($props.PSObject.Properties | Where-Object { $_.Name -notmatch '^(PSPath|PSParentPath|PSChildName|PSProvider)$' } | Select-Object -ExpandProperty Name)) { $val = [string]($props.$name); if ($val -match 'control\.exe|control panel|^control$|shell:.*ControlPanel|ControlPanel|explorer\.exe.*ControlPanel|microsoft\.windows\.controlpanel|Shell:::{.*}.*Control') { $found += [pscustomobject]@{ Path = $p; Name = $name; Value = $val }; Remove-ItemProperty -Path $p -Name $name -ErrorAction SilentlyContinue; $removed++ } } } } }; $startupFolders = @((Join-Path $env:APPDATA 'Microsoft\Windows\Start Menu\Programs\Startup'), (Join-Path $env:ProgramData 'Microsoft\Windows\Start Menu\Programs\Startup')); foreach ($folder in $startupFolders) { if (Test-Path $folder) { foreach ($file in Get-ChildItem -Path $folder -File -Force -ErrorAction SilentlyContinue) { if ($file.Name -match 'control|ControlPanel|control panel|Shell::') { $found += [pscustomobject]@{ Path = $folder; Name = $file.Name; Value = $file.FullName }; Remove-Item -Path $file.FullName -Force -ErrorAction SilentlyContinue; $removed++ } } } }; try { $startupList = Get-CimInstance -ClassName Win32_StartupCommand -ErrorAction Stop; foreach ($cmd in $startupList) { $cmdName = [string]$cmd.Name; $cmdValue = [string]$cmd.Command; if ($cmdValue -match 'control\.exe|control panel|^control$|shell:.*ControlPanel|ControlPanel|explorer\.exe.*ControlPanel|microsoft\.windows\.controlpanel|Shell:::{.*}.*Control') { $found += [pscustomobject]@{ Path = 'Win32_StartupCommand'; Name = $cmdName; Value = $cmdValue }; Write-Host ('[INFO] Startup item terdeteksi di Win32_StartupCommand: ' + $cmdName + ' -> ' + $cmdValue); } } } catch { Write-Host '[WARN] Tidak bisa membaca daftar startup dari WMI (Windows Management Instrumentation).' }; if ($removed -eq 0 -and $found.Count -eq 0) { Write-Host '[WARN] Tidak ada entry startup Control Panel yang terdeteksi.'; Write-Host '       Banyak startup item tidak disimpan di registry Run, melainkan di Startup Folder atau Startup Apps.'; } elseif ($removed -eq 0 -and $found.Count -gt 0) { Write-Host '[INFO] Startup item terdeteksi, namun tidak bisa dihapus otomatis dari sumbernya.'; $found | Select-Object Path,Name,Value | Format-Table -AutoSize; } else { Write-Host ('[INFO] Ditemukan dan dihapus ' + $removed + ' entry startup yang terkait dengan Control Panel.'); $found | Select-Object Path,Name,Value | Format-Table -AutoSize; }; Write-Host ''; Write-Host '[INFO] Untuk pengecekan lebih lanjut, buka Task Manager > Startup Apps.'"
 
 exit /b 0
 
