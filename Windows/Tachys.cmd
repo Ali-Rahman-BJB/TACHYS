@@ -76,6 +76,7 @@ goto :eof
 echo ------------------------------------------------
 echo         Pilih tool yang ingin dijalankan:
 echo.
+echo   s. Buka Halaman Virus ^& threat protection (Windows Security)
 echo   1. Cek Kesehatan HDD/SSD (Storage Reliability)
 echo   2. Cek Status WiFi Card
 echo   3. Keyboard Tester
@@ -244,6 +245,30 @@ powershell -NoProfile -Command "$removed = 0; $found = @(); $paths = @('HKCU:\So
 exit /b 0
 
 :: ============================================================
+:: 8. BUKA PENGATURAN REAL-TIME PROTECTION (MANUAL)
+:: ============================================================
+:run_open_defender_settings
+echo [INFO] Membuka halaman Virus ^& threat protection settings di Windows Security ...
+echo.
+echo [PENTING] Tachys TIDAK mematikan Real-Time Protection secara otomatis.
+echo           Halaman pengaturan akan dibuka agar Anda bisa menonaktifkannya
+echo           SENDIRI secara manual jika memang diperlukan, lalu jangan lupa
+echo           mengaktifkannya kembali setelah selesai untuk menjaga keamanan
+echo           perangkat.
+echo.
+
+start "" windowsdefender://threatsettings
+if errorlevel 1 (
+    echo [WARN] Gagal membuka via windowsdefender://, mencoba cara alternatif ...
+    start "" ms-settings:windowsdefender
+)
+
+echo.
+echo [INFO] Jika halaman tidak terbuka otomatis, buka manual lewat:
+echo        Windows Security ^> Virus ^& threat protection ^> Manage settings
+exit /b 0
+
+:: ============================================================
 :: CLEANUP
 :: ============================================================
 :cleanup
@@ -268,7 +293,7 @@ goto :eof
 call :show_banner
 call :show_menu
 
-set /p pilihan="Masukkan pilihan [0-7]: "
+set /p pilihan="Masukkan pilihan [0-7, s]: "
 echo.
 
 if "%pilihan%"=="1" (
@@ -285,6 +310,8 @@ if "%pilihan%"=="1" (
     call :run_process_monitor
 ) else if "%pilihan%"=="7" (
     call :run_disable_control_panel_startup
+) else if "%pilihan%"=="s" (
+    call :run_open_defender_settings
 ) else if "%pilihan%"=="0" (
     echo [INFO] Keluar dari Tachys. Sampai jumpa!
     call :cleanup
