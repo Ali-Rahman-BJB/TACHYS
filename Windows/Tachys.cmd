@@ -8,6 +8,19 @@ set "SCRIPT_DIR=%~dp0"
 if "%SCRIPT_DIR:~-1%"=="\" set "SCRIPT_DIR=%SCRIPT_DIR:~0,-1%"
 set "DRIVE_ROOT=%~d0\"
 
+rem Setelah dibuka dengan double-click atau Run as administrator, arahkan ke cmd /k
+rem agar jendela CMD tidak langsung menutup saat script selesai.
+rem PENTING: cek ini dilakukan PALING AWAL, sebelum pencarian file di bawah,
+rem supaya pencarian berat tidak dijalankan dua kali (sekali di jendela awal,
+rem sekali lagi di jendela kedua).
+if /i "%~1"=="__KEEP_OPEN__" goto :setup_paths
+if "%~1"=="" (
+    echo Menyiapkan Tachys, mohon tunggu sebentar...
+    start "" "%ComSpec%" /k "%~f0" __KEEP_OPEN__
+    exit /b 0
+)
+
+:setup_paths
 rem --- Cari KeyboardTestUtility.exe di beberapa kemungkinan lokasi umum ---
 rem    Ini membuat lokasi flashdisk fleksibel: tidak peduli apakah folder
 rem    Application berada sejajar dengan script, satu folder di atas,
@@ -23,9 +36,18 @@ for %%P in (
 )
 
 rem --- Fallback terakhir: cari otomatis ke seluruh flashdisk kalau belum ketemu ---
+rem    Dilewati kalau drive-nya adalah drive sistem (C:), karena scan seluruh
+rem    drive C: bisa memakan waktu SANGAT lama dan membuat jendela terlihat
+rem    seperti freeze. Fallback ini hanya masuk akal untuk flashdisk kecil.
 if not defined KEYTEST_APP (
-    for /f "delims=" %%F in ('dir "%DRIVE_ROOT%KeyboardTestUtility.exe" /s /b 2^>nul') do (
-        if not defined KEYTEST_APP set "KEYTEST_APP=%%~fF"
+    if /i "%DRIVE_ROOT%"=="%SystemDrive%\" (
+        echo [INFO] Dijalankan dari drive sistem ^(%SystemDrive%^), pencarian otomatis ke
+        echo        seluruh drive dilewati karena akan memakan waktu sangat lama.
+    ) else (
+        echo [INFO] Mencari KeyboardTestUtility.exe ke seluruh %DRIVE_ROOT% , mohon tunggu...
+        for /f "delims=" %%F in ('dir "%DRIVE_ROOT%KeyboardTestUtility.exe" /s /b 2^>nul') do (
+            if not defined KEYTEST_APP set "KEYTEST_APP=%%~fF"
+        )
     )
 )
 
@@ -34,14 +56,6 @@ if not defined KEYTEST_APP set "KEYTEST_APP=%DRIVE_ROOT%TACHYS\Application\WINDO
 
 set "TMP_DIR=%TEMP%\Tachys"
 if not exist "%TMP_DIR%" mkdir "%TMP_DIR%" >nul 2>&1
-
-rem Setelah dibuka dengan double-click atau Run as administrator, arahkan ke cmd /k
-rem agar jendela CMD tidak langsung menutup saat script selesai.
-if /i "%~1"=="__KEEP_OPEN__" goto :main
-if "%~1"=="" (
-    start "" "%ComSpec%" /k "%~f0" __KEEP_OPEN__
-    exit /b 0
-)
 
 goto :main
 
@@ -171,31 +185,17 @@ if not exist "%KEYTEST_APP%" (
     exit /b 1
 )
 
-if not exist "%TMP_DIR%" (
-    mkdir "%TMP_DIR%" >nul 2>&1
-    if errorlevel 1 (
-        echo [ERROR] Gagal membuat direktori sementara: %TMP_DIR%
-        exit /b 1
-    )
-)
-
-copy /y "%KEYTEST_APP%" "%TMP_DIR%\KeyboardTestUtility.exe" >nul 2>&1
-if errorlevel 1 (
-    echo [ERROR] Gagal menyalin file ke %TMP_DIR%
-    echo         Kemungkinan penyebab: flashdisk terlepas, ruang disk penuh,
-    echo         atau tidak ada izin tulis ke folder temp.
-    exit /b 1
-)
-
-echo [INFO] Memeriksa status Windows Security ^(Real-Time Protection^) ...
+echo [INFO] Memeriksa status Windows Security ^(Real-Time Protection^) SEBELUM menyentuh file ...
 set "RTP_STATUS=2"
 for /f %%R in ('powershell -NoProfile -Command "try { $s = Get-MpComputerStatus -ErrorAction Stop; if ($s.RealTimeProtectionEnabled) { Write-Output 1 } else { Write-Output 0 } } catch { Write-Output 2 }" 2^>nul') do set "RTP_STATUS=%%R"
 
 if "%RTP_STATUS%"=="1" (
     echo.
     echo [PERINGATAN] Real-Time Protection Windows Security sedang AKTIF.
-    echo              KeyboardTestUtility.exe dibatalkan untuk mencegah file
-    echo              dihapus/dikarantina otomatis oleh Windows Defender saat berjalan.
+    echo              KeyboardTestUtility.exe TIDAK akan disalin/dijalankan, supaya
+    echo              file aslinya di flashdisk tidak ikut dihapus/dikarantina.
+    echo              ^(Menyalin file saja sudah bisa memicu Windows Defender
+    echo              memindai lalu menghapus filenya.^)
     echo.
     echo [SOLUSI] Nonaktifkan sementara Real-Time Protection ^(menu 's' di
     echo          menu utama^), atau tambahkan Exclusion untuk folder %TMP_DIR%
@@ -209,6 +209,26 @@ if "%RTP_STATUS%"=="2" (
     echo        Tachys akan tetap mencoba menjalankan Keyboard Tester, tapi jika file
     echo        tiba-tiba hilang/dihapus, kemungkinan penyebabnya adalah antivirus.
     echo.
+)
+
+if not exist "%TMP_DIR%" (
+    mkdir "%TMP_DIR%" >nul 2>&1
+    if errorlevel 1 (
+        echo [ERROR] Gagal membuat direktori sementara: %TMP_DIR%
+        exit /b 1
+    )
+)
+
+copy /y "%KEYTEST_APP%" "%TMP_DIR%\KeyboardTestUtility.exe" >nul 2>&1
+if errorlevel 1 (
+    echo [ERROR] Gagal menyalin file ke %TMP_DIR%
+    echo         Kemungkinan penyebab: flashdisk terlepas, ruang disk penuh,
+    echo         tidak ada izin tulis ke folder temp, atau file baru saja
+    echo         dihapus/dikarantina oleh antivirus lain saat proses ini berjalan.
+    echo.
+    echo [SOLUSI] Solusi: Matikan Real-time Protection di Windows Defender/Antivirus.
+    echo.
+    exit /b 1
 )
 
 echo [INFO] Menjalankan Keyboard Tester ...
