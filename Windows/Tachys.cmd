@@ -290,13 +290,37 @@ powershell -NoProfile -Command "Write-Host '--- 10 proses dengan penggunaan CPU 
 exit /b 0
 
 :: ============================================================
-:: 7. NONAKTIFKAN AUTO START CONTROL PANEL
+:: 7. NONAKTIFKAN FAST STARTUP
 :: ============================================================
 :run_disable_control_panel_startup
-echo [INFO] Mengecek entry startup Control Panel ...
+echo [INFO] Mengecek status Fast Startup dan hak akses Administrator ...
 echo.
 
-powershell -NoProfile -Command "$removed = 0; $found = @(); $paths = @('HKCU:\Software\Microsoft\Windows\CurrentVersion\Run','HKLM:\Software\Microsoft\Windows\CurrentVersion\Run','HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\StartupApproved\Run'); foreach ($p in $paths) { if (Test-Path $p) { $items = Get-ChildItem -Path $p -ErrorAction SilentlyContinue; foreach ($item in $items) { $props = Get-ItemProperty -Path $item.PSPath -ErrorAction SilentlyContinue; if (-not $props) { continue }; foreach ($name in ($props.PSObject.Properties | Where-Object { $_.Name -notmatch '^(PSPath|PSParentPath|PSChildName|PSProvider)$' } | Select-Object -ExpandProperty Name)) { $val = [string]($props.$name); if ($val -match 'control\.exe|control panel|^control$|shell:.*ControlPanel|ControlPanel|explorer\.exe.*ControlPanel|microsoft\.windows\.controlpanel|Shell:::{.*}.*Control') { $found += [pscustomobject]@{ Path = $p; Name = $name; Value = $val }; Remove-ItemProperty -Path $p -Name $name -ErrorAction SilentlyContinue; $removed++ } } } } }; $startupFolders = @((Join-Path $env:APPDATA 'Microsoft\Windows\Start Menu\Programs\Startup'), (Join-Path $env:ProgramData 'Microsoft\Windows\Start Menu\Programs\Startup')); foreach ($folder in $startupFolders) { if (Test-Path $folder) { foreach ($file in Get-ChildItem -Path $folder -File -Force -ErrorAction SilentlyContinue) { if ($file.Name -match 'control|ControlPanel|control panel|Shell::') { $found += [pscustomobject]@{ Path = $folder; Name = $file.Name; Value = $file.FullName }; Remove-Item -Path $file.FullName -Force -ErrorAction SilentlyContinue; $removed++ } } } }; try { $startupList = Get-CimInstance -ClassName Win32_StartupCommand -ErrorAction Stop; foreach ($cmd in $startupList) { $cmdName = [string]$cmd.Name; $cmdValue = [string]$cmd.Command; if ($cmdValue -match 'control\.exe|control panel|^control$|shell:.*ControlPanel|ControlPanel|explorer\.exe.*ControlPanel|microsoft\.windows\.controlpanel|Shell:::{.*}.*Control') { $found += [pscustomobject]@{ Path = 'Win32_StartupCommand'; Name = $cmdName; Value = $cmdValue }; Write-Host ('[INFO] Startup item terdeteksi di Win32_StartupCommand: ' + $cmdName + ' -> ' + $cmdValue); } } } catch { Write-Host '[WARN] Tidak bisa membaca daftar startup dari WMI (Windows Management Instrumentation).' }; if ($removed -eq 0 -and $found.Count -eq 0) { Write-Host '[WARN] Tidak ada entry startup Control Panel yang terdeteksi.'; Write-Host '       Banyak startup item tidak disimpan di registry Run, melainkan di Startup Folder atau Startup Apps.'; } elseif ($removed -eq 0 -and $found.Count -gt 0) { Write-Host '[INFO] Startup item terdeteksi, namun tidak bisa dihapus otomatis dari sumbernya.'; $found | Select-Object Path,Name,Value | Format-Table -AutoSize; } else { Write-Host ('[INFO] Ditemukan dan dihapus ' + $removed + ' entry startup yang terkait dengan Control Panel.'); $found | Select-Object Path,Name,Value | Format-Table -AutoSize; }; Write-Host ''; Write-Host '[INFO] Untuk pengecekan lebih lanjut, buka Task Manager > Startup Apps.'"
+net session >nul 2>&1
+if not "%errorlevel%"=="0" (
+    echo [ERROR] Fitur Fast Startup diatur lewat registry HKLM, jadi butuh
+    echo         hak akses Administrator untuk mengubahnya.
+    echo.
+    echo [INFO] Jalankan ulang Tachys dengan cara klik kanan file ini lalu
+    echo        pilih "Run as administrator", kemudian pilih menu [7] lagi.
+    exit /b 1
+)
+
+powershell -NoProfile -Command ^
+    "$key = 'HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager\Power';" ^
+    "$current = (Get-ItemProperty -Path $key -Name HiberbootEnabled -ErrorAction SilentlyContinue).HiberbootEnabled;" ^
+    "if ($null -eq $current) { Write-Host '[INFO] Fast Startup sepertinya sudah tidak aktif di sistem ini (key tidak ditemukan).' }" ^
+    "elseif ($current -eq 0) { Write-Host '[INFO] Fast Startup memang sudah nonaktif sebelumnya.' }" ^
+    "else { Write-Host ('[INFO] Fast Startup saat ini AKTIF (HiberbootEnabled=' + $current + '), sedang dinonaktifkan...') };" ^
+    "try { Set-ItemProperty -Path $key -Name HiberbootEnabled -Value 0 -Type DWord -ErrorAction Stop; Write-Host '[OK] Fast Startup berhasil dinonaktifkan (HiberbootEnabled=0).' } catch { Write-Host '[ERROR] Gagal mengubah registry. Pastikan dijalankan sebagai Administrator.'; Write-Host $_.Exception.Message }"
+
+echo.
+echo [INFO] Perubahan berlaku penuh setelah komputer RESTART (bukan cukup shutdown biasa,
+echo        karena Fast Startup sendiri yang membuat shutdown biasa tidak benar-benar restart).
+echo [INFO] Untuk verifikasi manual: Control Panel ^> Power Options ^>
+echo        "Choose what the power buttons do" ^> opsi "Turn on fast startup" seharusnya
+echo        sudah tidak tersedia/tercentang.
+echo.
 
 exit /b 0
 
