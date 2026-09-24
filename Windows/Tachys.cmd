@@ -1,5 +1,5 @@
 @echo off
-setlocal enabledelayedexpansion
+setlocal
 title TACHYS - Portable Diagnostic Toolkit (Windows)
 color 0A
 chcp 65001 >nul
@@ -11,35 +11,13 @@ set "DRIVE_ROOT=%~d0\"
 if /i "%~1"=="__KEEP_OPEN__" goto :setup_paths
 if "%~1"=="" (
     echo Menyiapkan Tachys, mohon tunggu sebentar...
-    start "" "%ComSpec%" /k "%~f0" __KEEP_OPEN__
+    start "" "%ComSpec%" /k ""%~f0" __KEEP_OPEN__"
     exit /b 0
 )
 
 :setup_paths
 
-set "KEYTEST_APP="
-for %%P in (
-    "%SCRIPT_DIR%\Application\WINDOWS\KeyboardTestUtility.exe"
-    "%SCRIPT_DIR%\..\Application\WINDOWS\KeyboardTestUtility.exe"
-    "%DRIVE_ROOT%Application\WINDOWS\KeyboardTestUtility.exe"
-    "%DRIVE_ROOT%TACHYS\Application\WINDOWS\KeyboardTestUtility.exe"
-) do (
-    if not defined KEYTEST_APP if exist "%%~fP" set "KEYTEST_APP=%%~fP"
-)
-
-if not defined KEYTEST_APP (
-    if /i "%DRIVE_ROOT%"=="%SystemDrive%\" (
-        echo [INFO] Dijalankan dari drive sistem ^(%SystemDrive%^), pencarian otomatis ke
-        echo        seluruh drive dilewati karena akan memakan waktu sangat lama.
-    ) else (
-        echo [INFO] Mencari KeyboardTestUtility.exe ke seluruh %DRIVE_ROOT% , mohon tunggu...
-        for /f "delims=" %%F in ('dir "%DRIVE_ROOT%KeyboardTestUtility.exe" /s /b 2^>nul') do (
-            if not defined KEYTEST_APP set "KEYTEST_APP=%%~fF"
-        )
-    )
-)
-
-if not defined KEYTEST_APP set "KEYTEST_APP=%DRIVE_ROOT%TACHYS\Application\WINDOWS\KeyboardTestUtility.exe"
+:: (KeyboardTestUtility dicari saat menu [3] dipilih, bukan saat startup)
 
 set "TMP_DIR=%TEMP%\Tachys"
 if not exist "%TMP_DIR%" mkdir "%TMP_DIR%" >nul 2>&1
@@ -82,7 +60,7 @@ echo   1. Cek Kesehatan HDD/SSD
 echo   2. Cek Status WiFi Card
 echo   3. Tes Keyboard
 echo   4. Tes Audio
-echo   5. Cek Kesehatan Baterai
+echo   5. Cek Kesehatan Baterai ^(+ Cycle Count^)
 echo   6. Cek Program Berat  
 echo   7. Nonaktifkan Fast Startup Control Panel
 echo   0. Keluar
@@ -126,10 +104,7 @@ if not errorlevel 1 (
     exit /b 1
 )
 
-for /f "usebackq tokens=* delims=" %%L in ("%TMP_DIR%\wifi.txt") do (
-    echo %%L | findstr /i /c:"Name" /c:"State" /c:"SSID" /c:"Signal" /c:"Radio status" /c:"Receive rate" /c:"Transmit rate" >nul
-    if not errorlevel 1 echo %%L
-)
+findstr /i /c:"Name" /c:"Nama" /c:"State" /c:"Status" /c:"SSID" /c:"Signal" /c:"Sinyal" /c:"Receive rate" /c:"Transmit rate" /c:"Laju" "%TMP_DIR%\wifi.txt"
 
 echo.
 echo [INFO] Uji konektivitas ke Google.com via ping ...
@@ -146,10 +121,41 @@ echo        Jika "State" menunjukkan "disconnected", coba sambungkan ke jaringan
 exit /b 0
 
 :: ============================================================
+:: HELPER: cari KeyboardTestUtility.exe (dipanggil hanya dari menu [3])
+:: ============================================================
+:find_keytest
+if defined KEYTEST_APP if exist "%KEYTEST_APP%" exit /b 0
+set "KEYTEST_APP="
+for %%P in (
+    "%SCRIPT_DIR%\Application\WINDOWS\KeyboardTestUtility.exe"
+    "%SCRIPT_DIR%\..\Application\WINDOWS\KeyboardTestUtility.exe"
+    "%DRIVE_ROOT%Application\WINDOWS\KeyboardTestUtility.exe"
+    "%DRIVE_ROOT%TACHYS\Application\WINDOWS\KeyboardTestUtility.exe"
+) do (
+    if not defined KEYTEST_APP if exist "%%~fP" set "KEYTEST_APP=%%~fP"
+)
+
+if not defined KEYTEST_APP (
+    if /i "%DRIVE_ROOT%"=="%SystemDrive%\" (
+        echo [INFO] Dijalankan dari drive sistem ^(%SystemDrive%^), pencarian otomatis ke
+        echo        seluruh drive dilewati karena akan memakan waktu sangat lama.
+    ) else (
+        echo [INFO] Mencari KeyboardTestUtility.exe ke seluruh %DRIVE_ROOT% , mohon tunggu...
+        for /f "delims=" %%F in ('dir "%DRIVE_ROOT%KeyboardTestUtility.exe" /s /b 2^>nul') do (
+            if not defined KEYTEST_APP set "KEYTEST_APP=%%~fF"
+        )
+    )
+)
+
+if not defined KEYTEST_APP set "KEYTEST_APP=%DRIVE_ROOT%TACHYS\Application\WINDOWS\KeyboardTestUtility.exe"
+exit /b 0
+
+:: ============================================================
 :: 3. KEYBOARD TESTER
 :: ============================================================
 :run_keyboard_tester
 echo [INFO] Menyiapkan Keyboard Tester ...
+call :find_keytest
 
 if not exist "%KEYTEST_APP%" (
     echo [ERROR] File KeyboardTestUtility.exe tidak ditemukan di flashdisk ini.
@@ -247,22 +253,54 @@ exit /b 0
 echo [INFO] Memeriksa kesehatan baterai ...
 echo.
 
-powershell -NoProfile -Command "$b = Get-CimInstance -ClassName Win32_Battery -ErrorAction SilentlyContinue; if ($b) { foreach ($x in $b) { Write-Host ('Status          : ' + $x.Status); Write-Host ('Estimasi charge : ' + $x.EstimatedChargeRemaining + '%%') } } else { try { $bs = Get-CimInstance -Namespace 'root\wmi' -ClassName BatteryStatus -ErrorAction Stop; $bf = Get-CimInstance -Namespace 'root\wmi' -ClassName BatteryFullChargedCapacity -ErrorAction SilentlyContinue; if ($bs) { foreach ($x in $bs) { $statusText = if ($x.Charging) { 'Charging' } elseif ($x.Discharging) { 'Discharging' } elseif ($x.PowerOnline) { 'Tersambung AC / Terisi Penuh' } else { 'Tidak diketahui' }; $pct = if ($bf -and $bf.FullChargedCapacity -gt 0) { [math]::Round(($x.RemainingCapacity / $bf.FullChargedCapacity) * 100,0) } else { $null }; Write-Host ('Status          : ' + $statusText); if ($null -ne $pct) { Write-Host ('Estimasi charge : ' + $pct + '%%') } } } else { Write-Host '[WARN] Tidak ditemukan baterai di sistem ini.'; Write-Host '       (Wajar jika ini adalah PC desktop tanpa baterai.)' } } catch { Write-Host '[WARN] Tidak ditemukan baterai di sistem ini.'; Write-Host '       (Wajar jika ini adalah PC desktop tanpa baterai, atau driver baterai tidak melaporkan data lewat WMI pada perangkat ini.)' } }"
+set "BATXML=%TMP_DIR%\battery-report.xml"
+set "BATREPORT=%TMP_DIR%\battery-report.html"
+if exist "%BATXML%" del /q "%BATXML%" >nul 2>&1
+
+powershell -NoProfile -Command ^
+    "$ErrorActionPreference = 'SilentlyContinue';" ^
+    "$w = @(Get-CimInstance -ClassName Win32_Battery);" ^
+    "$s = @(Get-CimInstance -Namespace 'root\wmi' -ClassName BatteryStatus);" ^
+    "if ($w.Count -eq 0 -and $s.Count -eq 0) { Write-Host '[WARN] Tidak ditemukan baterai di sistem ini.'; Write-Host '       (Wajar jika ini PC desktop tanpa baterai, atau driver baterai tidak melaporkan data via WMI.)'; exit 2 };" ^
+    "$map = @{1='Discharging (memakai baterai)';2='Tersambung AC';3='Terisi penuh';4='Low';5='Critical';6='Charging';7='Charging';8='Charging';9='Charging';11='Terisi sebagian'};" ^
+    "Write-Host '=== Status Saat Ini ===';" ^
+    "foreach ($x in $w) { $st = $map[[int]$x.BatteryStatus]; if (-not $st) { $st = 'Tidak diketahui' }; Write-Host ('Status          : ' + $st); Write-Host ('Estimasi charge : ' + $x.EstimatedChargeRemaining + '%%'); $rt = [int]$x.EstimatedRunTime; if ($x.BatteryStatus -eq 1 -and $rt -gt 0 -and $rt -lt 71582788) { $hh = [math]::Floor($rt/60); Write-Host ('Estimasi sisa   : ' + $hh + ' jam ' + ($rt - $hh*60) + ' menit') } };" ^
+    "if ($w.Count -eq 0) { foreach ($x in $s) { $t = if ($x.Charging) { 'Charging' } elseif ($x.Discharging) { 'Discharging' } elseif ($x.PowerOnline) { 'Tersambung AC / Terisi penuh' } else { 'Tidak diketahui' }; Write-Host ('Status          : ' + $t) } };" ^
+    "$xml = $env:BATXML;" ^
+    "& powercfg /batteryreport /xml /output $xml 2>&1 | Out-Null;" ^
+    "$bats = @();" ^
+    "if (Test-Path -LiteralPath $xml) { [xml]$doc = Get-Content -LiteralPath $xml -Raw; $bats = @($doc.GetElementsByTagName('Battery') | Where-Object { $_.DesignCapacity }) };" ^
+    "Write-Host '';" ^
+    "Write-Host '=== Kesehatan Baterai ===';" ^
+    "if ($bats.Count -eq 0) { Write-Host '[WARN] Laporan powercfg tidak menghasilkan data kapasitas. Coba jalankan sebagai Administrator.' };" ^
+    "$i = 0;" ^
+    "foreach ($b in $bats) { $i++; $d = [double]$b.DesignCapacity; $f = [double]$b.FullChargeCapacity; $cc = 0 + $b.CycleCount;" ^
+    "if ($cc -le 0) { $wc = Get-CimInstance -Namespace 'root\wmi' -ClassName BatteryCycleCount | Select-Object -First 1; if ($wc -and $wc.CycleCount -gt 0) { $cc = [int]$wc.CycleCount } };" ^
+    "$h = if ($d -gt 0) { [math]::Round($f/$d*100,1) } else { $null };" ^
+    "$rate = if ($null -eq $h) { 'Tidak diketahui' } elseif ($h -ge 80) { 'Baik' } elseif ($h -ge 60) { 'Cukup, mulai menurun' } else { 'Buruk, pertimbangkan ganti baterai' };" ^
+    "Write-Host ('--- Baterai #' + $i + ' ---');" ^
+    "if ($b.Manufacturer) { Write-Host ('Produsen        : ' + $b.Manufacturer) };" ^
+    "if ($b.Chemistry) { Write-Host ('Kimia           : ' + $b.Chemistry) };" ^
+    "Write-Host ('Design Capacity : ' + $d + ' mWh');" ^
+    "Write-Host ('Full Charge Cap : ' + $f + ' mWh');" ^
+    "if ($null -ne $h) { Write-Host ('Kesehatan       : ' + $h + '%% (' + $rate + ')'); Write-Host ('Tingkat keausan : ' + [math]::Round(100-$h,1) + '%%') };" ^
+    "if ($cc -gt 0) { Write-Host ('Cycle Count     : ' + $cc + ' siklus') } else { Write-Host 'Cycle Count     : tidak dilaporkan oleh baterai/driver ini (nilai 0 atau kosong)' } };" ^
+    "exit 0"
+
+if "%errorlevel%"=="2" exit /b 1
 
 echo.
-echo [INFO] Membuat laporan kesehatan baterai lengkap (powercfg) ...
-set "BATREPORT=%TMP_DIR%\battery-report.html"
-if not exist "%TMP_DIR%" mkdir "%TMP_DIR%" >nul 2>&1
+echo [INFO] Laporan lengkap (riwayat pemakaian, dll) tersedia dalam format HTML.
+choice /c YN /n /m "Buka laporan lengkap di browser? [Y/N]: "
+if errorlevel 2 exit /b 0
+
 powercfg /batteryreport /output "%BATREPORT%" >nul 2>&1
 if exist "%BATREPORT%" (
     echo [INFO] Laporan tersimpan di: %BATREPORT%
-    echo [INFO] Membuka laporan di browser ...
-    echo        ^(Laporan ini berisi Design Capacity, Full Charge Capacity, dan Cycle Count - setara dengan info "Kesehatan" di versi Linux.^)
     start "" "%BATREPORT%"
 ) else (
-    echo [WARN] Gagal membuat laporan powercfg. Perangkat mungkin tidak memiliki baterai.
+    echo [WARN] Gagal membuat laporan HTML.
 )
-
 exit /b 0
 
 :: ============================================================
@@ -272,7 +310,7 @@ exit /b 0
 echo [INFO] Memeriksa proses antivirus / program berat yang berjalan ...
 echo.
 
-powershell -NoProfile -Command "Write-Host '--- 10 proses dengan penggunaan CPU tertinggi ---'; Get-Process | Sort-Object CPU -Descending | Select-Object -First 10 Id,ProcessName,CPU,@{Name='Mem(MB)';Expression={[math]::Round($_.WorkingSet/1MB,1)}} | Format-Table -AutoSize; Write-Host ''; Write-Host '--- Produk antivirus / security terdaftar (Security Center) ---'; try { $av = Get-CimInstance -Namespace 'root/SecurityCenter2' -ClassName AntiVirusProduct -ErrorAction Stop; if ($av) { $av | Select-Object displayName | Format-Table -AutoSize } else { Write-Host 'Tidak ditemukan produk antivirus yang terdaftar di Security Center.' } } catch { Write-Host 'Tidak bisa membaca data Security Center (coba jalankan sebagai Administrator).' }; Write-Host ''; Write-Host '--- Proses dengan pemakaian memori sangat besar (lebih dari 500MB) ---'; $heavy = Get-Process | Where-Object { $_.WorkingSet -gt 500MB } | Sort-Object WorkingSet -Descending; if (-not $heavy) { Write-Host 'Tidak ada proses yang terdeteksi memakai memori sangat besar saat ini.' } else { $heavy | Select-Object Id,ProcessName,@{Name='Mem(MB)';Expression={[math]::Round($_.WorkingSet/1MB,1)}} | Format-Table -AutoSize; while ($true) { $pidInput = Read-Host 'Masukkan PID yang ingin dimatikan (kosongkan untuk selesai)'; if ([string]::IsNullOrWhiteSpace($pidInput)) { break }; if ($pidInput -notmatch '^[0-9]+$') { Write-Host '[ERROR] PID tidak valid, harus berupa angka.'; continue }; $proc = Get-Process -Id $pidInput -ErrorAction SilentlyContinue; if (-not $proc) { Write-Host ('[ERROR] PID ' + $pidInput + ' tidak ditemukan (mungkin sudah berhenti).'); continue }; $confirm = Read-Host ('Yakin ingin mematikan proses ' + $proc.ProcessName + ' (PID ' + $pidInput + ')? [Y/N]'); if ($confirm -match '^[Yy]') { try { Stop-Process -Id $pidInput -Force -ErrorAction Stop; Write-Host ('[INFO] Proses ' + $proc.ProcessName + ' (PID ' + $pidInput + ') berhasil dihentikan.') } catch { Write-Host '[ERROR] Gagal menghentikan proses. Mungkin perlu izin Administrator.' } } else { Write-Host '[INFO] Dilewati, proses tidak dimatikan.' } } }"
+powershell -NoProfile -Command "$all = Get-Process; Write-Host '--- 10 proses dengan waktu CPU kumulatif tertinggi (detik) ---'; $all | Sort-Object CPU -Descending | Select-Object -First 10 Id,ProcessName,CPU,@{Name='Mem(MB)';Expression={[math]::Round($_.WorkingSet/1MB,1)}} | Format-Table -AutoSize; Write-Host ''; Write-Host '--- Produk antivirus / security terdaftar (Security Center) ---'; try { $av = Get-CimInstance -Namespace 'root/SecurityCenter2' -ClassName AntiVirusProduct -ErrorAction Stop; if ($av) { $av | Select-Object displayName | Format-Table -AutoSize } else { Write-Host 'Tidak ditemukan produk antivirus yang terdaftar di Security Center.' } } catch { Write-Host 'Tidak bisa membaca data Security Center (coba jalankan sebagai Administrator).' }; Write-Host ''; Write-Host '--- Proses dengan pemakaian memori sangat besar (lebih dari 500MB) ---'; $heavy = $all | Where-Object { $_.WorkingSet -gt 500MB } | Sort-Object WorkingSet -Descending; if (-not $heavy) { Write-Host 'Tidak ada proses yang terdeteksi memakai memori sangat besar saat ini.' } else { $heavy | Select-Object Id,ProcessName,@{Name='Mem(MB)';Expression={[math]::Round($_.WorkingSet/1MB,1)}} | Format-Table -AutoSize; while ($true) { $pidInput = Read-Host 'Masukkan PID yang ingin dimatikan (kosongkan untuk selesai)'; if ([string]::IsNullOrWhiteSpace($pidInput)) { break }; if ($pidInput -notmatch '^[0-9]+$') { Write-Host '[ERROR] PID tidak valid, harus berupa angka.'; continue }; $proc = Get-Process -Id $pidInput -ErrorAction SilentlyContinue; if (-not $proc) { Write-Host ('[ERROR] PID ' + $pidInput + ' tidak ditemukan (mungkin sudah berhenti).'); continue }; $confirm = Read-Host ('Yakin ingin mematikan proses ' + $proc.ProcessName + ' (PID ' + $pidInput + ')? [Y/N]'); if ($confirm -match '^[Yy]') { try { Stop-Process -Id $pidInput -Force -ErrorAction Stop; Write-Host ('[INFO] Proses ' + $proc.ProcessName + ' (PID ' + $pidInput + ') berhasil dihentikan.') } catch { Write-Host '[ERROR] Gagal menghentikan proses. Mungkin perlu izin Administrator.' } } else { Write-Host '[INFO] Dilewati, proses tidak dimatikan.' } } }"
 
 exit /b 0
 
@@ -360,6 +398,7 @@ goto :eof
 call :show_banner
 call :show_menu
 
+set "pilihan="
 set /p pilihan="Masukkan pilihan [0-7, s]: "
 echo.
 
@@ -377,7 +416,7 @@ if "%pilihan%"=="1" (
     call :run_process_monitor
 ) else if "%pilihan%"=="7" (
     call :run_disable_control_panel_startup
-) else if "%pilihan%"=="s" (
+) else if /i "%pilihan%"=="s" (
     call :run_open_defender_settings
 ) else if "%pilihan%"=="0" (
     echo [INFO] Keluar dari Tachys. Sampai jumpa^!
