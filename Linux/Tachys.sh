@@ -1,3 +1,4 @@
+#!/usr/bin/env bash
 set -u
 set -o pipefail
 
@@ -13,6 +14,19 @@ cleanup() {
     fi
 }
 trap cleanup EXIT
+
+# ---------------------------------------------------------------------------
+# Helper: baca 1 baris dari file sysfs/proc ke variabel TANPA memanggil `cat`
+# (tanpa fork proses baru).
+# Pemakaian : read_sys <file> <nama_variabel>
+# Return    : 1 jika file tidak bisa dibaca
+# ---------------------------------------------------------------------------
+read_sys() {
+    [ -r "$1" ] || return 1
+    local _v=""
+    IFS= read -r _v < "$1" 2>/dev/null
+    printf -v "$2" '%s' "$_v"
+}
 
 show_banner() {
     clear
@@ -70,16 +84,20 @@ run_keyboard_tester() {
         return 1
     fi
 
-    if ! cp "$src_app" "$dst_app"; then
-        echo "[ERROR] Gagal menyalin file dari flashdisk ke $TMP_DIR"
-        echo "        Kemungkinan penyebab: flashdisk terlepas, ruang /tmp penuh,"
-        echo "        atau tidak ada izin tulis ke /tmp."
-        return 1
-    fi
+    # Salin dari flashdisk hanya jika belum ada di /tmp atau versi di flashdisk
+    # lebih baru. Menjalankan menu ini berulang kali tidak perlu menyalin ulang.
+    if [ ! -x "$dst_app" ] || [ "$src_app" -nt "$dst_app" ]; then
+        if ! cp "$src_app" "$dst_app"; then
+            echo "[ERROR] Gagal menyalin file dari flashdisk ke $TMP_DIR"
+            echo "        Kemungkinan penyebab: flashdisk terlepas, ruang /tmp penuh,"
+            echo "        atau tidak ada izin tulis ke /tmp."
+            return 1
+        fi
 
-    if ! chmod +x "$dst_app"; then
-        echo "[ERROR] Gagal memberikan permission execute pada $dst_app"
-        return 1
+        if ! chmod +x "$dst_app"; then
+            echo "[ERROR] Gagal memberikan permission execute pada $dst_app"
+            return 1
+        fi
     fi
 
     echo "[INFO] Menjalankan Keyboard Tester ..."
@@ -104,44 +122,36 @@ run_battery_health() {
         return 1
     fi
 
+    local bat name status capacity full design cycles health
+
     for bat in "${bat_dirs[@]}"; do
-        local name
-        name="$(basename "$bat")"
+        name="${bat##*/}"    # pengganti `basename` (tanpa fork)
         echo "--- Baterai: $name ---"
 
-        if [ -f "$bat/status" ]; then
-            echo "Status        : $(cat "$bat/status")"
+        status="" capacity="" full="" design="" cycles=""
+
+        read_sys "$bat/status"   status   && echo "Status        : $status"
+        read_sys "$bat/capacity" capacity && echo "Kapasitas kini: ${capacity}%"
+
+        if [ -r "$bat/energy_full" ] && [ -r "$bat/energy_full_design" ]; then
+            read_sys "$bat/energy_full" full
+            read_sys "$bat/energy_full_design" design
+        elif [ -r "$bat/charge_full" ] && [ -r "$bat/charge_full_design" ]; then
+            read_sys "$bat/charge_full" full
+            read_sys "$bat/charge_full_design" design
         fi
 
-        if [ -f "$bat/capacity" ]; then
-            echo "Kapasitas kini: $(cat "$bat/capacity")%"
-        fi
-
-        local full=""
-        local design=""
-
-        if [ -f "$bat/energy_full" ] && [ -f "$bat/energy_full_design" ]; then
-            full="$(cat "$bat/energy_full")"
-            design="$(cat "$bat/energy_full_design")"
-        elif [ -f "$bat/charge_full" ] && [ -f "$bat/charge_full_design" ]; then
-            full="$(cat "$bat/charge_full")"
-            design="$(cat "$bat/charge_full_design")"
-        fi
-
-        if [ -n "$full" ] && [ -n "$design" ] && [ "$design" -gt 0 ]; then
-            local health
-            health="$(awk -v f="$full" -v d="$design" 'BEGIN { printf "%.1f", (f/d)*100 }')"
-            echo "Kesehatan     : ${health}% (dibanding kapasitas pabrik)"
+        # Hitung persentase dengan aritmetika bash (tanpa memanggil awk).
+        if [[ $full =~ ^[0-9]+$ && $design =~ ^[0-9]+$ ]] && [ "$((10#$design))" -gt 0 ]; then
+            health=$(( (10#$full * 2000 / 10#$design + 1) / 2 ))   # dalam persepuluh persen, dibulatkan
+            printf 'Kesehatan     : %d.%d%% (dibanding kapasitas pabrik)\n' \
+                "$((health / 10))" "$((health % 10))"
         else
             echo "Kesehatan     : tidak tersedia dari sistem ini"
         fi
 
-        if [ -f "$bat/cycle_count" ]; then
-            local cycles
-            cycles="$(cat "$bat/cycle_count")"
-            if [ "$cycles" != "0" ]; then
-                echo "Cycle count   : $cycles"
-            fi
+        if read_sys "$bat/cycle_count" cycles && [ "$cycles" != "0" ]; then
+            echo "Cycle count   : $cycles"
         fi
 
         echo
@@ -149,11 +159,8 @@ run_battery_health() {
 
     if command -v upower >/dev/null 2>&1; then
         echo "--- Info tambahan (upower) ---"
-        local upower_dev
-        upower_dev="$(upower -e 2>/dev/null | grep -i battery | head -n 1)"
-        if [ -n "$upower_dev" ]; then
-            upower -i "$upower_dev" 2>/dev/null
-        fi
+        # Path device upower mengikuti nama di sysfs, jadi tidak perlu `upower -e | grep | head`.
+        upower -i "/org/freedesktop/UPower/devices/battery_${bat_dirs[0]##*/}" 2>/dev/null
     fi
 
     return 0
@@ -177,19 +184,13 @@ run_audio_output_test() {
         return 0
     fi
 
-    # XFCE
+    # XFCE / PipeWire / PulseAudio (semuanya lewat pavucontrol)
     if command -v pavucontrol >/dev/null 2>&1; then
         echo "[INFO] Menggunakan PulseAudio Volume Control."
         pavucontrol >/dev/null 2>&1 &
         return 0
     fi
 
-    # PipeWire / PulseAudio melalui pavucontrol
-    if command -v pavucontrol >/dev/null 2>&1; then
-        echo "[INFO] Membuka pengaturan audio."
-        pavucontrol >/dev/null 2>&1 &
-        return 0
-    fi
     echo "[ERROR] Tidak ditemukan aplikasi pengaturan audio."
     echo
     echo "Coba install salah satu:"
@@ -204,9 +205,19 @@ run_wifi_check() {
     echo "[INFO] Memeriksa status WiFi Card ..."
     echo
 
-    local wifi_iface=""
+    local wifi_iface="" p
 
-    if command -v iw >/dev/null 2>&1; then
+    # 1) Cara paling ringan: cari lewat sysfs (tanpa menjalankan program apa pun).
+    for p in /sys/class/net/*/phy80211; do
+        if [ -e "$p" ]; then
+            wifi_iface="${p#/sys/class/net/}"
+            wifi_iface="${wifi_iface%%/*}"
+            break
+        fi
+    done
+
+    # 2) Fallback: iw, lalu nmcli.
+    if [ -z "$wifi_iface" ] && command -v iw >/dev/null 2>&1; then
         wifi_iface="$(iw dev 2>/dev/null | awk '$1=="Interface"{print $2; exit}')"
     fi
 
@@ -222,8 +233,9 @@ run_wifi_check() {
 
     echo "Interface WiFi : $wifi_iface"
 
-    if [ -f "/sys/class/net/$wifi_iface/operstate" ]; then
-        echo "Status Link    : $(cat "/sys/class/net/$wifi_iface/operstate")"
+    local state=""
+    if read_sys "/sys/class/net/$wifi_iface/operstate" state; then
+        echo "Status Link    : $state"
     fi
 
     if command -v rfkill >/dev/null 2>&1; then
@@ -236,9 +248,19 @@ run_wifi_check() {
     fi
 
     if command -v nmcli >/dev/null 2>&1; then
-        local ssid signal
-        ssid="$(nmcli -t -f active,ssid dev wifi 2>/dev/null | awk -F: '$1=="yes"{print $2; exit}')"
-        signal="$(nmcli -t -f active,signal dev wifi 2>/dev/null | awk -F: '$1=="yes"{print $2; exit}')"
+        local ssid="" signal="" nm_line rest
+
+        # Satu kali panggilan nmcli untuk SSID + sinyal (sebelumnya dua kali).
+        # --rescan no : pakai hasil scan yang sudah ada, jangan memicu scan WiFi baru.
+        nm_line="$(nmcli -t -f active,signal,ssid dev wifi list ifname "$wifi_iface" --rescan no 2>/dev/null \
+                    | grep -m1 '^yes:')"
+
+        if [ -n "$nm_line" ]; then
+            rest="${nm_line#yes:}"       # <signal>:<ssid>
+            signal="${rest%%:*}"
+            ssid="${rest#*:}"
+            ssid="${ssid//\\:/:}"        # ":" di dalam SSID di-escape nmcli menjadi "\:"
+        fi
 
         if [ -n "$ssid" ]; then
             echo "SSID           : $ssid"
@@ -256,11 +278,10 @@ run_wifi_check() {
         else
             echo "[WARN] Tidak sedang terhubung ke jaringan WiFi manapun."
         fi
-    elif [ -f /proc/net/wireless ]; then
-        local line quality
-        line="$(grep "$wifi_iface" /proc/net/wireless)"
-        if [ -n "$line" ]; then
-            quality="$(echo "$line" | awk '{print $3}' | tr -d '.')"
+    elif [ -r /proc/net/wireless ]; then
+        local quality
+        quality="$(awk -v i="$wifi_iface:" '$1==i { gsub(/\./, "", $3); print $3; exit }' /proc/net/wireless)"
+        if [ -n "$quality" ]; then
             echo "Link Quality   : ${quality} (skala /proc/net/wireless, umumnya maks ~70)"
         else
             echo "[WARN] Tidak ada data sinyal untuk $wifi_iface pada saat ini."
@@ -273,19 +294,14 @@ run_wifi_check() {
     echo
     echo "--- Uji konektivitas: Google.com ---"
     if command -v ping >/dev/null 2>&1; then
-        if ! mkdir -p "$TMP_DIR"; then
-            echo "[WARN] Gagal membuat direktori sementara untuk log ping. Melanjutkan tanpa file log..."
-            ping -c 3 -W 2 google.com
+        # Hasil ping ditangkap ke variabel (tanpa mkdir + file log + cat).
+        local ping_out
+        if ping_out="$(ping -c 3 -W 2 google.com 2>&1)"; then
+            echo "[INFO] Koneksi internet ke Google berhasil terdeteksi."
         else
-            local ping_log="$TMP_DIR/google_ping.txt"
-            if ping -c 3 -W 2 google.com >"$ping_log" 2>&1; then
-                echo "[INFO] Koneksi internet ke Google berhasil terdeteksi."
-                cat "$ping_log"
-            else
-                echo "[WARN] Ping ke Google gagal atau koneksi internet tidak tersedia."
-                cat "$ping_log"
-            fi
+            echo "[WARN] Ping ke Google gagal atau koneksi internet tidak tersedia."
         fi
+        echo "$ping_out"
     else
         echo "[WARN] Tidak dapat melakukan ping karena utilitas 'ping' tidak tersedia."
     fi
@@ -298,35 +314,82 @@ run_process_monitor() {
     echo "[INFO] Memeriksa program berat yang berjalan ..."
     echo
 
-    echo "--- 10 proses dengan penggunaan CPU tertinggi ---"
-    ps -eo pid,ppid,%cpu,%mem,comm --sort=-%cpu | head -n 11
-    echo
-
-    echo "--- Kemungkinan proses antivirus / security ---"
     local av_patterns="clamd|clamav|freshclam|avast|avgd|avguard|kaspersky|kav|bitdefender|bdlogin|mcafee|sophos|comodo|eset|nod32|f-secure|rkhunter|chkrootkit|fail2ban"
-    local av_list
-    av_list="$(ps -eo pid,comm | grep -Ei "$av_patterns" | grep -v grep)"
 
-    if [ -n "$av_list" ]; then
-        echo "$av_list"
-    else
-        echo "Tidak ditemukan proses antivirus/security yang umum dikenali."
+    # ------------------------------------------------------------------
+    # SATU kali `ps` + SATU kali `awk` untuk seluruh laporan.
+    # (Sebelumnya: 3x `ps` + 6-7 proses grep/head/awk, dan `ps -p` lagi
+    #  di setiap putaran kill.)
+    #
+    # Proses milik skrip ini sendiri (shell $$ dan anak-anaknya: ps & awk)
+    # dibuang dari daftar. %CPU di `ps` adalah rata-rata sejak proses lahir,
+    # sehingga proses yang baru hidup beberapa milidetik (seperti `ps`
+    # sendiri) tampak "sangat tinggi" lalu hilang, dan sebelumnya ikut
+    # masuk daftar "proses berat".
+    #
+    # awk keluar dengan kode 10 jika ada proses berat, 0 jika tidak ada.
+    # ------------------------------------------------------------------
+    local -a rc
+    ps -eo pid=,ppid=,pcpu=,pmem=,comm= --sort=-pcpu | awk -v me="$$" -v av="$av_patterns" '
+        $1 == me || $2 == me { next }
+
+        {
+            name = $5
+            for (i = 6; i <= NF; i++) name = name " " $i
+
+            if (n_top < 10) {
+                n_top++
+                top[n_top] = sprintf("%-8s %-8s %6s %6s  %s", $1, $2, $3, $4, name)
+            }
+            if (tolower(name) ~ av) {
+                n_av++
+                avl[n_av] = sprintf("%-8s %s", $1, name)
+            }
+            if ($3 + 0 > 20 || $4 + 0 > 20) {
+                n_hv++
+                hv[n_hv] = sprintf("%-8s %-15s %6s %6s", $1, name, $3, $4)
+            }
+        }
+
+        END {
+            print "--- 10 proses dengan penggunaan CPU tertinggi ---"
+            printf "%-8s %-8s %6s %6s  %s\n", "PID", "PPID", "%CPU", "%MEM", "COMMAND"
+            for (i = 1; i <= n_top; i++) print top[i]
+            print ""
+
+            print "--- Kemungkinan proses antivirus / security ---"
+            if (n_av > 0) {
+                for (i = 1; i <= n_av; i++) print avl[i]
+            } else {
+                print "Tidak ditemukan proses antivirus/security yang umum dikenali."
+            }
+            print ""
+
+            print "--- Proses dengan pemakaian resource sangat berat (CPU > 20% atau MEM > 20%) ---"
+            if (n_hv == 0) {
+                print "Tidak ada proses yang terdeteksi memakai resource sangat berat saat ini."
+                print ""
+                exit 0
+            }
+            printf "%-8s %-15s %6s %6s\n", "PID", "NAMA", "%CPU", "%MEM"
+            for (i = 1; i <= n_hv; i++) print hv[i]
+            print ""
+            exit 10
+        }
+    '
+    rc=("${PIPESTATUS[@]}")
+
+    if [ "${rc[0]}" -ne 0 ]; then
+        echo "[ERROR] Perintah 'ps' gagal dijalankan (kode ${rc[0]})."
+        return 1
     fi
-    echo
 
-    echo "--- Proses dengan pemakaian resource sangat berat (CPU > 20% atau MEM > 20%) ---"
-    local heavy_list
-    heavy_list="$(ps -eo pid,comm,%cpu,%mem --no-headers | awk '$3+0>20 || $4+0>20')"
-
-    if [ -z "$heavy_list" ]; then
-        echo "Tidak ada proses yang terdeteksi memakai resource sangat berat saat ini."
-        echo
+    # Tidak ada proses berat -> tidak perlu menampilkan prompt kill.
+    if [ "${rc[1]}" -ne 10 ]; then
         return 0
     fi
 
-    echo "PID     NAMA            %CPU   %MEM"
-    echo "$heavy_list"
-    echo
+    local target_pid pname confirm
 
     while true; do
         read -r -p "Masukkan PID yang ingin dimatikan (kosongkan untuk selesai): " target_pid
@@ -334,14 +397,17 @@ run_process_monitor() {
             break
         fi
 
-        if ! echo "$target_pid" | grep -Eq '^[0-9]+$'; then
+        # Validasi dengan regex bawaan bash (tanpa `echo | grep`).
+        if [[ ! $target_pid =~ ^[0-9]{1,7}$ ]]; then
             echo "[ERROR] PID tidak valid, harus berupa angka."
             echo
             continue
         fi
+        target_pid=$((10#$target_pid))
 
-        local pname
-        pname="$(ps -p "$target_pid" -o comm= 2>/dev/null)"
+        # Nama proses dibaca langsung dari /proc (tanpa `ps -p`).
+        pname=""
+        { read -r pname < "/proc/$target_pid/comm"; } 2>/dev/null
 
         if [ -z "$pname" ]; then
             echo "[ERROR] PID $target_pid tidak ditemukan (mungkin sudah berhenti)."
@@ -385,7 +451,8 @@ run_disk_health() {
         return 1
     fi
 
-    if [ "$(id -u)" -ne 0 ]; then
+    # $EUID bawaan bash, menggantikan `id -u`.
+    if [ "$EUID" -ne 0 ]; then
         echo "[WARN] Tidak dijalankan sebagai root. Sebagian data SMART mungkin tidak lengkap"
         echo "       atau device tidak terdeteksi sama sekali. Disarankan jalankan Tachys dengan sudo."
         echo
@@ -398,7 +465,9 @@ run_disk_health() {
         echo "[WARN] Tidak ditemukan device disk yang bisa diperiksa smartctl."
         echo "       Mencoba fallback ke daftar block device via lsblk ..."
         if command -v lsblk >/dev/null 2>&1; then
-            scan_result="$(lsblk -dno NAME | awk '{print "/dev/"$1}')"
+            # Hanya disk sungguhan; loop/ram/zram dilewati karena tidak punya SMART.
+            scan_result="$(lsblk -dno NAME,TYPE 2>/dev/null \
+                | awk '$2=="disk" && $1 !~ /^(loop|ram|zram)/ {print "/dev/"$1}')"
         fi
     fi
 
@@ -407,14 +476,15 @@ run_disk_health() {
         return 1
     fi
 
-    local dev
+    local dev info
     for dev in $scan_result; do
         echo "════════════════════════════════════════════════════════════"
         echo "Device: $dev"
         echo "════════════════════════════════════════════════════════════"
 
-        local info
-        info="$(smartctl -a "$dev" 2>/dev/null)"
+        # -i -H -A = info + status kesehatan + atribut. Cukup untuk laporan ini,
+        # dan lebih ringan dari `-a` yang juga membaca error log & self-test log.
+        info="$(smartctl -i -H -A "$dev" 2>/dev/null)"
 
         if [ -z "$info" ]; then
             echo "[WARN] Tidak bisa membaca data SMART dari $dev."
@@ -424,43 +494,43 @@ run_disk_health() {
             continue
         fi
 
-        local model
-        model="$(echo "$info" | grep -iE "Device Model|Model Number" | head -n 1 | sed 's/.*:\s*//')"
-        [ -n "$model" ] && echo "Model         : $model"
+        # Satu kali awk menggantikan ~9 pipeline echo|grep|head|sed|awk per disk.
+        awk '
+            function after_colon(s) { sub(/^[^:]*:[ \t]*/, "", s); return s }
 
-        local health
-        health="$(echo "$info" | grep -i "overall-health self-assessment" | sed 's/.*:\s*//')"
-        if [ -n "$health" ]; then
-            echo "Status SMART  : $health"
-        else
-            echo "Status SMART  : tidak tersedia dari device ini"
-        fi
+            {
+                l = tolower($0)
 
-        local temp
-        temp="$(echo "$info" | grep -iE "Temperature_Celsius|^Temperature:" | head -n 1 | awk '{print $NF, "C"}')"
-        [ -n "$temp" ] && echo "Suhu          : $temp"
+                if (model == "" && (l ~ /device model/ || l ~ /model number/))  model = after_colon($0)
+                else if (l ~ /overall-health self-assessment/)                  health = after_colon($0)
+                else if (temp == "" && l ~ /temperature_celsius/)               temp = $10        # SATA
+                else if (temp == "" && l ~ /^temperature:/)                     temp = $2         # NVMe
+                else if (l ~ /power_on_hours/)                                  poweron = $10     # SATA
+                else if (l ~ /^power on hours:/)                                poweron = $4      # NVMe
+                else if (l ~ /reallocated_sector_ct/)                           realloc = $10
+                else if (l ~ /current_pending_sector/)                          pending = $10
+                else if (l ~ /percentage used/)                                 pct_used = after_colon($0)
+                else if (l ~ /available spare:/)                                spare = after_colon($0)
+            }
 
-        local poweron
-        poweron="$(echo "$info" | grep -i "Power_On_Hours" | awk '{print $NF}')"
-        [ -n "$poweron" ] && echo "Power-On Hours: $poweron jam"
+            END {
+                if (model != "")   printf "Model         : %s\n", model
+                printf "Status SMART  : %s\n", (health != "" ? health : "tidak tersedia dari device ini")
+                if (temp != "")    printf "Suhu          : %s C\n", temp
+                if (poweron != "") printf "Power-On Hours: %s jam\n", poweron
 
-        # SATA/HDD-specific: reallocated & pending sectors
-        local realloc pending
-        realloc="$(echo "$info" | grep -i "Reallocated_Sector_Ct" | awk '{print $NF}')"
-        pending="$(echo "$info" | grep -i "Current_Pending_Sector" | awk '{print $NF}')"
-        if [ -n "$realloc" ]; then
-            echo "Bad Sectors   : $realloc (realokasi), pending: ${pending:-0}"
-            if [ "$realloc" != "0" ] || { [ -n "$pending" ] && [ "$pending" != "0" ]; }; then
-                echo "[WARN] Terdeteksi bad sector! Pertimbangkan backup data segera."
-            fi
-        fi
+                # SATA/HDD: reallocated & pending sectors
+                if (realloc != "") {
+                    printf "Bad Sectors   : %s (realokasi), pending: %s\n", realloc, (pending != "" ? pending : "0")
+                    if (realloc != "0" || (pending != "" && pending != "0"))
+                        print "[WARN] Terdeteksi bad sector! Pertimbangkan backup data segera."
+                }
 
-        # NVMe-specific: percentage used & available spare
-        local pct_used spare
-        pct_used="$(echo "$info" | grep -i "Percentage Used" | sed 's/.*:\s*//')"
-        spare="$(echo "$info" | grep -i "Available Spare:" | grep -v Threshold | sed 's/.*:\s*//')"
-        [ -n "$pct_used" ] && echo "Wear Level    : $pct_used terpakai dari usia pakai (NVMe)"
-        [ -n "$spare" ] && echo "Spare Blocks  : $spare tersisa (NVMe)"
+                # NVMe: percentage used & available spare
+                if (pct_used != "") printf "Wear Level    : %s terpakai dari usia pakai (NVMe)\n", pct_used
+                if (spare != "")    printf "Spare Blocks  : %s tersisa (NVMe)\n", spare
+            }
+        ' <<< "$info"
 
         echo
     done
@@ -472,7 +542,7 @@ run_disk_health() {
 }
 
 show_menu() {
-    local local C_SUB="\033[0;36m"
+    local C_SUB="\033[0;36m"
     local C_TEAL="\033[0;36m"
     local C_LINE="\033[1;32m"
     local C_RST="\033[0m"
@@ -497,7 +567,7 @@ while true; do
     show_banner
     show_menu
 
-    read -r -p "Masukkan pilihan [0-6]: " pilihan
+    read -r -p "Masukkan pilihan [0-6]: " pilihan || { echo; exit 0; }
     echo
 
     case "$pilihan" in
