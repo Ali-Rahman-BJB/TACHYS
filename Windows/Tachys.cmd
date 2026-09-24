@@ -8,11 +8,6 @@ set "SCRIPT_DIR=%~dp0"
 if "%SCRIPT_DIR:~-1%"=="\" set "SCRIPT_DIR=%SCRIPT_DIR:~0,-1%"
 set "DRIVE_ROOT=%~d0\"
 
-rem Setelah dibuka dengan double-click atau Run as administrator, arahkan ke cmd /k
-rem agar jendela CMD tidak langsung menutup saat script selesai.
-rem PENTING: cek ini dilakukan PALING AWAL, sebelum pencarian file di bawah,
-rem supaya pencarian berat tidak dijalankan dua kali (sekali di jendela awal,
-rem sekali lagi di jendela kedua).
 if /i "%~1"=="__KEEP_OPEN__" goto :setup_paths
 if "%~1"=="" (
     echo Menyiapkan Tachys, mohon tunggu sebentar...
@@ -21,10 +16,7 @@ if "%~1"=="" (
 )
 
 :setup_paths
-rem --- Cari KeyboardTestUtility.exe di beberapa kemungkinan lokasi umum ---
-rem    Ini membuat lokasi flashdisk fleksibel: tidak peduli apakah folder
-rem    Application berada sejajar dengan script, satu folder di atas,
-rem    langsung di root drive, atau di dalam folder TACHYS di root.
+
 set "KEYTEST_APP="
 for %%P in (
     "%SCRIPT_DIR%\Application\WINDOWS\KeyboardTestUtility.exe"
@@ -35,10 +27,6 @@ for %%P in (
     if not defined KEYTEST_APP if exist "%%~fP" set "KEYTEST_APP=%%~fP"
 )
 
-rem --- Fallback terakhir: cari otomatis ke seluruh flashdisk kalau belum ketemu ---
-rem    Dilewati kalau drive-nya adalah drive sistem (C:), karena scan seluruh
-rem    drive C: bisa memakan waktu SANGAT lama dan membuat jendela terlihat
-rem    seperti freeze. Fallback ini hanya masuk akal untuk flashdisk kecil.
 if not defined KEYTEST_APP (
     if /i "%DRIVE_ROOT%"=="%SystemDrive%\" (
         echo [INFO] Dijalankan dari drive sistem ^(%SystemDrive%^), pencarian otomatis ke
@@ -51,7 +39,6 @@ if not defined KEYTEST_APP (
     )
 )
 
-rem Jika tetap tidak ketemu, pakai path default lama supaya pesan error tetap informatif
 if not defined KEYTEST_APP set "KEYTEST_APP=%DRIVE_ROOT%TACHYS\Application\WINDOWS\KeyboardTestUtility.exe"
 
 set "TMP_DIR=%TEMP%\Tachys"
