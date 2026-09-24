@@ -1,4 +1,3 @@
-#!/usr/bin/env bash
 set -u
 set -o pipefail
 
@@ -15,12 +14,6 @@ cleanup() {
 }
 trap cleanup EXIT
 
-# ---------------------------------------------------------------------------
-# Helper: baca 1 baris dari file sysfs/proc ke variabel TANPA memanggil `cat`
-# (tanpa fork proses baru).
-# Pemakaian : read_sys <file> <nama_variabel>
-# Return    : 1 jika file tidak bisa dibaca
-# ---------------------------------------------------------------------------
 read_sys() {
     [ -r "$1" ] || return 1
     local _v=""
@@ -84,8 +77,6 @@ run_keyboard_tester() {
         return 1
     fi
 
-    # Salin dari flashdisk hanya jika belum ada di /tmp atau versi di flashdisk
-    # lebih baru. Menjalankan menu ini berulang kali tidak perlu menyalin ulang.
     if [ ! -x "$dst_app" ] || [ "$src_app" -nt "$dst_app" ]; then
         if ! cp "$src_app" "$dst_app"; then
             echo "[ERROR] Gagal menyalin file dari flashdisk ke $TMP_DIR"
@@ -125,7 +116,7 @@ run_battery_health() {
     local bat name status capacity full design cycles health
 
     for bat in "${bat_dirs[@]}"; do
-        name="${bat##*/}"    # pengganti `basename` (tanpa fork)
+        name="${bat##*/}"
         echo "--- Baterai: $name ---"
 
         status="" capacity="" full="" design="" cycles=""
@@ -141,9 +132,8 @@ run_battery_health() {
             read_sys "$bat/charge_full_design" design
         fi
 
-        # Hitung persentase dengan aritmetika bash (tanpa memanggil awk).
         if [[ $full =~ ^[0-9]+$ && $design =~ ^[0-9]+$ ]] && [ "$((10#$design))" -gt 0 ]; then
-            health=$(( (10#$full * 2000 / 10#$design + 1) / 2 ))   # dalam persepuluh persen, dibulatkan
+            health=$(( (10
             printf 'Kesehatan     : %d.%d%% (dibanding kapasitas pabrik)\n' \
                 "$((health / 10))" "$((health % 10))"
         else
@@ -159,7 +149,6 @@ run_battery_health() {
 
     if command -v upower >/dev/null 2>&1; then
         echo "--- Info tambahan (upower) ---"
-        # Path device upower mengikuti nama di sysfs, jadi tidak perlu `upower -e | grep | head`.
         upower -i "/org/freedesktop/UPower/devices/battery_${bat_dirs[0]##*/}" 2>/dev/null
     fi
 
@@ -170,21 +159,18 @@ run_audio_output_test() {
     echo "[INFO] Membuka pengaturan Audio Output ..."
     echo
 
-    # GNOME
     if command -v gnome-control-center >/dev/null 2>&1; then
         echo "[INFO] Menggunakan GNOME Settings."
         gnome-control-center sound >/dev/null 2>&1 &
         return 0
     fi
 
-    # KDE Plasma
     if command -v systemsettings >/dev/null 2>&1; then
         echo "[INFO] Menggunakan KDE System Settings."
         systemsettings kcm_pulseaudio >/dev/null 2>&1 &
         return 0
     fi
 
-    # XFCE / PipeWire / PulseAudio (semuanya lewat pavucontrol)
     if command -v pavucontrol >/dev/null 2>&1; then
         echo "[INFO] Menggunakan PulseAudio Volume Control."
         pavucontrol >/dev/null 2>&1 &
@@ -207,7 +193,6 @@ run_wifi_check() {
 
     local wifi_iface="" p
 
-    # 1) Cara paling ringan: cari lewat sysfs (tanpa menjalankan program apa pun).
     for p in /sys/class/net/*/phy80211; do
         if [ -e "$p" ]; then
             wifi_iface="${p#/sys/class/net/}"
@@ -216,7 +201,6 @@ run_wifi_check() {
         fi
     done
 
-    # 2) Fallback: iw, lalu nmcli.
     if [ -z "$wifi_iface" ] && command -v iw >/dev/null 2>&1; then
         wifi_iface="$(iw dev 2>/dev/null | awk '$1=="Interface"{print $2; exit}')"
     fi
@@ -250,16 +234,14 @@ run_wifi_check() {
     if command -v nmcli >/dev/null 2>&1; then
         local ssid="" signal="" nm_line rest
 
-        # Satu kali panggilan nmcli untuk SSID + sinyal (sebelumnya dua kali).
-        # --rescan no : pakai hasil scan yang sudah ada, jangan memicu scan WiFi baru.
         nm_line="$(nmcli -t -f active,signal,ssid dev wifi list ifname "$wifi_iface" --rescan no 2>/dev/null \
                     | grep -m1 '^yes:')"
 
         if [ -n "$nm_line" ]; then
-            rest="${nm_line#yes:}"       # <signal>:<ssid>
+            rest="${nm_line#yes:}"
             signal="${rest%%:*}"
             ssid="${rest#*:}"
-            ssid="${ssid//\\:/:}"        # ":" di dalam SSID di-escape nmcli menjadi "\:"
+            ssid="${ssid//\\:/:}"
         fi
 
         if [ -n "$ssid" ]; then
@@ -294,7 +276,6 @@ run_wifi_check() {
     echo
     echo "--- Uji konektivitas: Google.com ---"
     if command -v ping >/dev/null 2>&1; then
-        # Hasil ping ditangkap ke variabel (tanpa mkdir + file log + cat).
         local ping_out
         if ping_out="$(ping -c 3 -W 2 google.com 2>&1)"; then
             echo "[INFO] Koneksi internet ke Google berhasil terdeteksi."
@@ -316,19 +297,6 @@ run_process_monitor() {
 
     local av_patterns="clamd|clamav|freshclam|avast|avgd|avguard|kaspersky|kav|bitdefender|bdlogin|mcafee|sophos|comodo|eset|nod32|f-secure|rkhunter|chkrootkit|fail2ban"
 
-    # ------------------------------------------------------------------
-    # SATU kali `ps` + SATU kali `awk` untuk seluruh laporan.
-    # (Sebelumnya: 3x `ps` + 6-7 proses grep/head/awk, dan `ps -p` lagi
-    #  di setiap putaran kill.)
-    #
-    # Proses milik skrip ini sendiri (shell $$ dan anak-anaknya: ps & awk)
-    # dibuang dari daftar. %CPU di `ps` adalah rata-rata sejak proses lahir,
-    # sehingga proses yang baru hidup beberapa milidetik (seperti `ps`
-    # sendiri) tampak "sangat tinggi" lalu hilang, dan sebelumnya ikut
-    # masuk daftar "proses berat".
-    #
-    # awk keluar dengan kode 10 jika ada proses berat, 0 jika tidak ada.
-    # ------------------------------------------------------------------
     local -a rc
     ps -eo pid=,ppid=,pcpu=,pmem=,comm= --sort=-pcpu | awk -v me="$$" -v av="$av_patterns" '
         $1 == me || $2 == me { next }
@@ -384,7 +352,6 @@ run_process_monitor() {
         return 1
     fi
 
-    # Tidak ada proses berat -> tidak perlu menampilkan prompt kill.
     if [ "${rc[1]}" -ne 10 ]; then
         return 0
     fi
@@ -397,15 +364,13 @@ run_process_monitor() {
             break
         fi
 
-        # Validasi dengan regex bawaan bash (tanpa `echo | grep`).
         if [[ ! $target_pid =~ ^[0-9]{1,7}$ ]]; then
             echo "[ERROR] PID tidak valid, harus berupa angka."
             echo
             continue
         fi
-        target_pid=$((10#$target_pid))
+        target_pid=$((10
 
-        # Nama proses dibaca langsung dari /proc (tanpa `ps -p`).
         pname=""
         { read -r pname < "/proc/$target_pid/comm"; } 2>/dev/null
 
@@ -451,7 +416,6 @@ run_disk_health() {
         return 1
     fi
 
-    # $EUID bawaan bash, menggantikan `id -u`.
     if [ "$EUID" -ne 0 ]; then
         echo "[WARN] Tidak dijalankan sebagai root. Sebagian data SMART mungkin tidak lengkap"
         echo "       atau device tidak terdeteksi sama sekali. Disarankan jalankan Tachys dengan sudo."
@@ -465,7 +429,6 @@ run_disk_health() {
         echo "[WARN] Tidak ditemukan device disk yang bisa diperiksa smartctl."
         echo "       Mencoba fallback ke daftar block device via lsblk ..."
         if command -v lsblk >/dev/null 2>&1; then
-            # Hanya disk sungguhan; loop/ram/zram dilewati karena tidak punya SMART.
             scan_result="$(lsblk -dno NAME,TYPE 2>/dev/null \
                 | awk '$2=="disk" && $1 !~ /^(loop|ram|zram)/ {print "/dev/"$1}')"
         fi
@@ -482,8 +445,6 @@ run_disk_health() {
         echo "Device: $dev"
         echo "════════════════════════════════════════════════════════════"
 
-        # -i -H -A = info + status kesehatan + atribut. Cukup untuk laporan ini,
-        # dan lebih ringan dari `-a` yang juga membaca error log & self-test log.
         info="$(smartctl -i -H -A "$dev" 2>/dev/null)"
 
         if [ -z "$info" ]; then
@@ -494,7 +455,6 @@ run_disk_health() {
             continue
         fi
 
-        # Satu kali awk menggantikan ~9 pipeline echo|grep|head|sed|awk per disk.
         awk '
             function after_colon(s) { sub(/^[^:]*:[ \t]*/, "", s); return s }
 
