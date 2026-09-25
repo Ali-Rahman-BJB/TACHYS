@@ -167,36 +167,26 @@ run_battery_health() {
 }
 
 run_audio_output_test() {
-    echo "[INFO] Membuka pengaturan Audio Output ..."
+    echo "[INFO] Menjalankan tes output audio ..."
     echo
 
-    # GNOME
-    if command -v gnome-control-center >/dev/null 2>&1; then
-        echo "[INFO] Menggunakan GNOME Settings."
-        gnome-control-center sound >/dev/null 2>&1 &
+    if command -v speaker-test >/dev/null 2>&1; then
+        echo "[INFO] Memutar test tone per channel (Kiri/Kanan) selama beberapa detik ..."
+        echo "[INFO] Tekan Ctrl+C jika ingin berhenti lebih awal."
+        speaker-test -c 2 -t wav -l 1
         return 0
     fi
 
-    # KDE Plasma
-    if command -v systemsettings >/dev/null 2>&1; then
-        echo "[INFO] Menggunakan KDE System Settings."
-        systemsettings kcm_pulseaudio >/dev/null 2>&1 &
-        return 0
+    if command -v aplay >/dev/null 2>&1 && command -v speaker-test >/dev/null 2>&1; then
+        : # sudah tercover di atas
     fi
 
-    # XFCE / PipeWire / PulseAudio (semuanya lewat pavucontrol)
-    if command -v pavucontrol >/dev/null 2>&1; then
-        echo "[INFO] Menggunakan PulseAudio Volume Control."
-        pavucontrol >/dev/null 2>&1 &
-        return 0
-    fi
-
-    echo "[ERROR] Tidak ditemukan aplikasi pengaturan audio."
+    echo "[ERROR] Tool 'speaker-test' (paket alsa-utils) tidak ditemukan."
     echo
-    echo "Coba install salah satu:"
-    echo "  Ubuntu/Debian : sudo apt install pavucontrol"
-    echo "  Fedora        : sudo dnf install pavucontrol"
-    echo "  Arch          : sudo pacman -S pavucontrol"
+    echo "Silakan install terlebih dahulu:"
+    echo "  Ubuntu/Debian : sudo apt install alsa-utils"
+    echo "  Fedora        : sudo dnf install alsa-utils"
+    echo "  Arch          : sudo pacman -S alsa-utils"
 
     return 1
 }
