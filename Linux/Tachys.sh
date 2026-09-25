@@ -133,7 +133,7 @@ run_battery_health() {
         fi
 
         if [[ $full =~ ^[0-9]+$ && $design =~ ^[0-9]+$ ]] && [ "$((10#$design))" -gt 0 ]; then
-            health=$(( (10
+            health=$(( (10#$full * 1000) / (10#$design) ))
             printf 'Kesehatan     : %d.%d%% (dibanding kapasitas pabrik)\n' \
                 "$((health / 10))" "$((health % 10))"
         else
@@ -362,7 +362,7 @@ run_process_monitor() {
             echo
             continue
         fi
-        target_pid=$((10
+        target_pid=$((10#$target_pid))
 
         pname=""
         { read -r pname < "/proc/$target_pid/comm"; } 2>/dev/null
