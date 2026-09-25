@@ -11,7 +11,7 @@ set "DRIVE_ROOT=%~d0\"
 if /i "%~1"=="__KEEP_OPEN__" goto :setup_paths
 if "%~1"=="" (
     echo Menyiapkan Tachys, mohon tunggu sebentar...
-    start "" "%ComSpec%" /k ""%~f0" __KEEP_OPEN__"
+    start "" "%ComSpec%" /k "%~f0" __KEEP_OPEN__
     exit /b 0
 )
 
@@ -104,7 +104,7 @@ if not errorlevel 1 (
     exit /b 1
 )
 
-findstr /i /c:"Name" /c:"Nama" /c:"State" /c:"Status" /c:"SSID" /c:"Signal" /c:"Sinyal" /c:"Receive rate" /c:"Transmit rate" /c:"Laju" "%TMP_DIR%\wifi.txt"
+findstr /i /c:"Name" /c:"Nama" /c:"State" /c:"Status" /c:"SSID" /c:"Signal" /c:"Sinyal" /c:"Radio status" /c:"Receive rate" /c:"Transmit rate" /c:"Laju" "%TMP_DIR%\wifi.txt"
 
 echo.
 echo [INFO] Uji konektivitas ke Google.com via ping ...
@@ -238,12 +238,40 @@ exit /b 0
 :: 4. AUDIO OUTPUT
 :: ============================================================
 :run_audio_output_test
-echo [INFO] Membuka pengaturan Audio Output ...
-start "" ms-settings:sound
+echo [INFO] Memutar suara tes langsung dari komputer, tidak perlu buka Settings ...
+echo.
+
+powershell -NoProfile -Command ^
+    "try {" ^
+    "  [System.Media.SystemSounds]::Asterisk.Play(); Start-Sleep -Milliseconds 700;" ^
+    "  [System.Media.SystemSounds]::Exclamation.Play(); Start-Sleep -Milliseconds 700;" ^
+    "  exit 0" ^
+    "} catch {" ^
+    "  exit 1" ^
+    "}"
+
 if errorlevel 1 (
-    echo [WARN] Gagal membuka via ms-settings, mencoba mmsys.cpl ...
-    start "" control mmsys.cpl
+    echo [WARN] Gagal memutar suara sistem, mencoba system beep sebagai gantinya ...
+    powershell -NoProfile -Command "[console]::beep(800,400); Start-Sleep -Milliseconds 100; [console]::beep(1000,400)" >nul 2>&1
+    if errorlevel 1 (
+        echo [ERROR] Tidak bisa memutar suara test sama sekali di sistem ini.
+        echo         Kemungkinan tidak ada output audio yang aktif/terpasang.
+        exit /b 1
+    )
+    echo [INFO] Jika Anda mendengar bunyi beep barusan, output audio berfungsi
+    echo        ^(minimal lewat speaker internal/PC speaker^).
+) else (
+    echo [INFO] Jika Anda mendengar 2 nada notifikasi barusan, output audio berfungsi normal.
+    echo [TANYA] Tidak dengar suara? Cek volume/mute, kabel/headphone tersambung
+    echo         dengan benar, dan pastikan default output device sudah benar.
 )
+
+echo.
+choice /c YN /n /m "Buka pengaturan Sound untuk cek/ganti default device? [Y/N]: "
+if errorlevel 2 exit /b 0
+
+start "" ms-settings:sound
+if errorlevel 1 start "" control mmsys.cpl
 exit /b 0
 
 :: ============================================================
