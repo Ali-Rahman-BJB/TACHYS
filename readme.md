@@ -1,8 +1,10 @@
 # TACHYS SCRIPTING
 
+```text
 ▄█████ ██▄  ▄██ ██ ▄█▀   █████▄  ▄████  █████▄  ██   ▄██   ██▄  ▄██ ▄████▄ █████▄  ██████ ▄████▄ █████▄ ██  ██ █████▄  ▄████▄ 
 ▀▀▀▄▄▄ ██ ▀▀ ██ ████     ██▄▄█▀ ██  ▄▄▄ ██▄▄██▄ ██    ██   ██ ▀▀ ██ ██▄▄██ ██▄▄██▄   ██   ██▄▄██ ██▄▄█▀ ██  ██ ██▄▄██▄ ██▄▄██ 
 █████▀ ██    ██ ██ ▀█▄   ██      ▀███▀  ██   ██ ██    ██   ██    ██ ██  ██ ██   ██   ██   ██  ██ ██     ▀████▀ ██   ██ ██  ██
+```
 
 **TACHYS** is a portable diagnostic toolkit designed to help technicians, students, and interns perform basic computer component checks through the terminal.
 
