@@ -58,127 +58,108 @@ BANNER
     echo -e "${C_SUB}Repository  ${C_RST}: https://github.com/Ali-Rahman-BJB/TACHYS"
     echo
 }
-run_keyboard_tester() {
-    local src_app="$FLASHDISK_ROOT/Application/LINUX/keyboard-tester/keyboard-tester"
-    local dst_app="$TMP_DIR/keyboard-tester"
 
-    echo "[INFO] Menyiapkan Keyboard Tester ..."
-
-    if [ ! -f "$src_app" ]; then
-        echo "[ERROR] File keyboard-tester tidak ditemukan di:"
-        echo "        $src_app"
-        echo "        Pastikan struktur folder flashdisk masih sesuai:"
-        echo "        TACHYS/Application/LINUX/keyboard-tester/keyboard-tester"
-        return 1
-    fi
-
-    if ! mkdir -p "$TMP_DIR"; then
-        echo "[ERROR] Gagal membuat direktori sementara: $TMP_DIR"
-        return 1
-    fi
-
-    if [ ! -x "$dst_app" ] || [ "$src_app" -nt "$dst_app" ]; then
-        if ! cp "$src_app" "$dst_app"; then
-            echo "[ERROR] Gagal menyalin file dari flashdisk ke $TMP_DIR"
-            echo "        Kemungkinan penyebab: flashdisk terlepas, ruang /tmp penuh,"
-            echo "        atau tidak ada izin tulis ke /tmp."
-            return 1
-        fi
-
-        if ! chmod +x "$dst_app"; then
-            echo "[ERROR] Gagal memberikan permission execute pada $dst_app"
-            return 1
-        fi
-    fi
-
-    echo "[INFO] Menjalankan Keyboard Tester ..."
-    if ! "$dst_app"; then
-        echo "[ERROR] Keyboard Tester gagal dijalankan atau keluar dengan error."
-        return 1
-    fi
-
-    echo "[INFO] Keyboard Tester selesai."
-    return 0
-}
-
-run_battery_health() {
-    echo "[INFO] Memeriksa kesehatan baterai ..."
+run_disk_health() {
+    echo "[INFO] Memeriksa kesehatan HDD/SSD (SMART) ..."
     echo
 
-    local bat_dirs=(/sys/class/power_supply/BAT*)
-
-    if [ ! -d "${bat_dirs[0]}" ]; then
-        echo "[WARN] Tidak ditemukan baterai di sistem ini."
-        echo "       (Wajar jika ini adalah PC desktop tanpa baterai.)"
+    if ! command -v smartctl >/dev/null 2>&1; then
+        echo "[ERROR] Tool 'smartctl' tidak ditemukan di sistem ini."
+        echo
+        echo "Silakan install terlebih dahulu:"
+        echo "  Ubuntu/Debian : sudo apt install smartmontools"
+        echo "  Fedora        : sudo dnf install smartmontools"
+        echo "  Arch          : sudo pacman -S smartmontools"
+        echo
+        echo "Setelah terinstall, jalankan kembali menu ini."
         return 1
     fi
 
-    local bat name status capacity full design cycles health
+    if [ "$EUID" -ne 0 ]; then
+        echo "[WARN] Tidak dijalankan sebagai root. Sebagian data SMART mungkin tidak lengkap"
+        echo "       atau device tidak terdeteksi sama sekali. Disarankan jalankan Tachys dengan sudo."
+        echo
+    fi
 
-    for bat in "${bat_dirs[@]}"; do
-        name="${bat##*/}"
-        echo "--- Baterai: $name ---"
+    local scan_result
+    scan_result="$(smartctl --scan 2>/dev/null | awk '{print $1}')"
 
-        status="" capacity="" full="" design="" cycles=""
+    if [ -z "$scan_result" ]; then
+        echo "[WARN] Tidak ditemukan device disk yang bisa diperiksa smartctl."
+        echo "       Mencoba fallback ke daftar block device via lsblk ..."
+        if command -v lsblk >/dev/null 2>&1; then
+            scan_result="$(lsblk -dno NAME,TYPE 2>/dev/null \
+                | awk '$2=="disk" && $1 !~ /^(loop|ram|zram)/ {print "/dev/"$1}')"
+        fi
+    fi
 
-        read_sys "$bat/status"   status   && echo "Status        : $status"
-        read_sys "$bat/capacity" capacity && echo "Kapasitas kini: ${capacity}%"
+    if [ -z "$scan_result" ]; then
+        echo "[ERROR] Tidak ada device disk yang terdeteksi sama sekali."
+        return 1
+    fi
 
-        if [ -r "$bat/energy_full" ] && [ -r "$bat/energy_full_design" ]; then
-            read_sys "$bat/energy_full" full
-            read_sys "$bat/energy_full_design" design
-        elif [ -r "$bat/charge_full" ] && [ -r "$bat/charge_full_design" ]; then
-            read_sys "$bat/charge_full" full
-            read_sys "$bat/charge_full_design" design
+    local dev info
+    for dev in $scan_result; do
+        echo "════════════════════════════════════════════════════════════"
+        echo "Device: $dev"
+        echo "════════════════════════════════════════════════════════════"
+
+        info="$(smartctl -i -H -A "$dev" 2>/dev/null)"
+
+        if [ -z "$info" ]; then
+            echo "[WARN] Tidak bisa membaca data SMART dari $dev."
+            echo "       Kemungkinan butuh akses root (jalankan dengan sudo) atau"
+            echo "       device tidak mendukung SMART (mis. USB flashdisk / SD card)."
+            echo
+            continue
         fi
 
-        if [[ $full =~ ^[0-9]+$ && $design =~ ^[0-9]+$ ]] && [ "$((10#$design))" -gt 0 ]; then
-            health=$(( (10#$full * 1000) / (10#$design) ))
-            printf 'Kesehatan     : %d.%d%% (dibanding kapasitas pabrik)\n' \
-                "$((health / 10))" "$((health % 10))"
-        else
-            echo "Kesehatan     : tidak tersedia dari sistem ini"
-        fi
+        awk '
+            function after_colon(s) { sub(/^[^:]*:[ \t]*/, "", s); return s }
 
-        if read_sys "$bat/cycle_count" cycles && [ "$cycles" != "0" ]; then
-            echo "Cycle count   : $cycles"
-        fi
+            {
+                l = tolower($0)
+
+                if (model == "" && (l ~ /device model/ || l ~ /model number/))  model = after_colon($0)
+                else if (l ~ /overall-health self-assessment/)                  health = after_colon($0)
+                else if (temp == "" && l ~ /temperature_celsius/)               temp = $10        # SATA
+                else if (temp == "" && l ~ /^temperature:/)                     temp = $2         # NVMe
+                else if (l ~ /power_on_hours/)                                  poweron = $10     # SATA
+                else if (l ~ /^power on hours:/)                                poweron = $4      # NVMe
+                else if (l ~ /reallocated_sector_ct/)                           realloc = $10
+                else if (l ~ /current_pending_sector/)                          pending = $10
+                else if (l ~ /percentage used/)                                 pct_used = after_colon($0)
+                else if (l ~ /available spare:/)                                spare = after_colon($0)
+            }
+
+            END {
+                if (model != "")   printf "Model         : %s\n", model
+                printf "Status SMART  : %s\n", (health != "" ? health : "tidak tersedia dari device ini")
+                if (temp != "")    printf "Suhu          : %s C\n", temp
+                if (poweron != "") printf "Power-On Hours: %s jam\n", poweron
+
+                # SATA/HDD: reallocated & pending sectors
+                if (realloc != "") {
+                    printf "Bad Sectors   : %s (realokasi), pending: %s\n", realloc, (pending != "" ? pending : "0")
+                    if (realloc != "0" || (pending != "" && pending != "0"))
+                        print "[WARN] Terdeteksi bad sector! Pertimbangkan backup data segera."
+                }
+
+                # NVMe: percentage used & available spare
+                if (pct_used != "") printf "Wear Level    : %s terpakai dari usia pakai (NVMe)\n", pct_used
+                if (spare != "")    printf "Spare Blocks  : %s tersisa (NVMe)\n", spare
+            }
+        ' <<< "$info"
 
         echo
     done
 
-    if command -v upower >/dev/null 2>&1; then
-        echo "--- Info tambahan (upower) ---"
-        upower -i "/org/freedesktop/UPower/devices/battery_${bat_dirs[0]##*/}" 2>/dev/null
-    fi
-
+    echo "[INFO] Pemeriksaan SMART selesai."
+    echo "       Status 'PASSED'/'OK' = sehat. Jika 'FAILED' atau ada banyak bad sector,"
+    echo "       segera backup data dan pertimbangkan penggantian disk."
     return 0
 }
 
-run_audio_output_test() {
-    echo "[INFO] Menjalankan tes output audio ..."
-    echo
-
-    if command -v speaker-test >/dev/null 2>&1; then
-        echo "[INFO] Memutar test tone per channel (Kiri/Kanan) selama beberapa detik ..."
-        echo "[INFO] Tekan Ctrl+C jika ingin berhenti lebih awal."
-        speaker-test -c 2 -t wav -l 1
-        return 0
-    fi
-
-    if command -v aplay >/dev/null 2>&1 && command -v speaker-test >/dev/null 2>&1; then
-        : # sudah tercover di atas
-    fi
-
-    echo "[ERROR] Tool 'speaker-test' (paket alsa-utils) tidak ditemukan."
-    echo
-    echo "Silakan install terlebih dahulu:"
-    echo "  Ubuntu/Debian : sudo apt install alsa-utils"
-    echo "  Fedora        : sudo dnf install alsa-utils"
-    echo "  Arch          : sudo pacman -S alsa-utils"
-
-    return 1
-}
 
 run_wifi_check() {
     echo "[INFO] Memeriksa status WiFi Card ..."
@@ -281,6 +262,129 @@ run_wifi_check() {
     fi
 
     echo
+    return 0
+}
+
+
+run_keyboard_tester() {
+    local src_app="$FLASHDISK_ROOT/Application/LINUX/keyboard-tester/keyboard-tester"
+    local dst_app="$TMP_DIR/keyboard-tester"
+
+    echo "[INFO] Menyiapkan Keyboard Tester ..."
+
+    if [ ! -f "$src_app" ]; then
+        echo "[ERROR] File keyboard-tester tidak ditemukan di:"
+        echo "        $src_app"
+        echo "        Pastikan struktur folder flashdisk masih sesuai:"
+        echo "        TACHYS/Application/LINUX/keyboard-tester/keyboard-tester"
+        return 1
+    fi
+
+    if ! mkdir -p "$TMP_DIR"; then
+        echo "[ERROR] Gagal membuat direktori sementara: $TMP_DIR"
+        return 1
+    fi
+
+    if [ ! -x "$dst_app" ] || [ "$src_app" -nt "$dst_app" ]; then
+        if ! cp "$src_app" "$dst_app"; then
+            echo "[ERROR] Gagal menyalin file dari flashdisk ke $TMP_DIR"
+            echo "        Kemungkinan penyebab: flashdisk terlepas, ruang /tmp penuh,"
+            echo "        atau tidak ada izin tulis ke /tmp."
+            return 1
+        fi
+
+        if ! chmod +x "$dst_app"; then
+            echo "[ERROR] Gagal memberikan permission execute pada $dst_app"
+            return 1
+        fi
+    fi
+
+    echo "[INFO] Menjalankan Keyboard Tester ..."
+    if ! "$dst_app"; then
+        echo "[ERROR] Keyboard Tester gagal dijalankan atau keluar dengan error."
+        return 1
+    fi
+
+    echo "[INFO] Keyboard Tester selesai."
+    return 0
+}
+
+run_audio_output_test() {
+    echo "[INFO] Menjalankan tes output audio ..."
+    echo
+
+    if command -v speaker-test >/dev/null 2>&1; then
+        echo "[INFO] Memutar test tone per channel (Kiri/Kanan) selama beberapa detik ..."
+        echo "[INFO] Tekan Ctrl+C jika ingin berhenti lebih awal."
+        speaker-test -c 2 -t wav -l 1
+        return 0
+    fi
+
+    if command -v aplay >/dev/null 2>&1 && command -v speaker-test >/dev/null 2>&1; then
+        : # sudah tercover di atas
+    fi
+
+    echo "[ERROR] Tool 'speaker-test' (paket alsa-utils) tidak ditemukan."
+    echo
+    echo "Silakan install terlebih dahulu:"
+    echo "  Ubuntu/Debian : sudo apt install alsa-utils"
+    echo "  Fedora        : sudo dnf install alsa-utils"
+    echo "  Arch          : sudo pacman -S alsa-utils"
+
+    return 1
+}
+
+run_battery_health() {
+    echo "[INFO] Memeriksa kesehatan baterai ..."
+    echo
+
+    local bat_dirs=(/sys/class/power_supply/BAT*)
+
+    if [ ! -d "${bat_dirs[0]}" ]; then
+        echo "[WARN] Tidak ditemukan baterai di sistem ini."
+        echo "       (Wajar jika ini adalah PC desktop tanpa baterai.)"
+        return 1
+    fi
+
+    local bat name status capacity full design cycles health
+
+    for bat in "${bat_dirs[@]}"; do
+        name="${bat##*/}"
+        echo "--- Baterai: $name ---"
+
+        status="" capacity="" full="" design="" cycles=""
+
+        read_sys "$bat/status"   status   && echo "Status        : $status"
+        read_sys "$bat/capacity" capacity && echo "Kapasitas kini: ${capacity}%"
+
+        if [ -r "$bat/energy_full" ] && [ -r "$bat/energy_full_design" ]; then
+            read_sys "$bat/energy_full" full
+            read_sys "$bat/energy_full_design" design
+        elif [ -r "$bat/charge_full" ] && [ -r "$bat/charge_full_design" ]; then
+            read_sys "$bat/charge_full" full
+            read_sys "$bat/charge_full_design" design
+        fi
+
+        if [[ $full =~ ^[0-9]+$ && $design =~ ^[0-9]+$ ]] && [ "$((10#$design))" -gt 0 ]; then
+            health=$(( (10#$full * 1000) / (10#$design) ))
+            printf 'Kesehatan     : %d.%d%% (dibanding kapasitas pabrik)\n' \
+                "$((health / 10))" "$((health % 10))"
+        else
+            echo "Kesehatan     : tidak tersedia dari sistem ini"
+        fi
+
+        if read_sys "$bat/cycle_count" cycles && [ "$cycles" != "0" ]; then
+            echo "Cycle count   : $cycles"
+        fi
+
+        echo
+    done
+
+    if command -v upower >/dev/null 2>&1; then
+        echo "--- Info tambahan (upower) ---"
+        upower -i "/org/freedesktop/UPower/devices/battery_${bat_dirs[0]##*/}" 2>/dev/null
+    fi
+
     return 0
 }
 
@@ -392,108 +496,6 @@ run_process_monitor() {
     return 0
 }
 
-run_disk_health() {
-    echo "[INFO] Memeriksa kesehatan HDD/SSD (SMART) ..."
-    echo
-
-    if ! command -v smartctl >/dev/null 2>&1; then
-        echo "[ERROR] Tool 'smartctl' tidak ditemukan di sistem ini."
-        echo "        Ini setara dengan HDD Sentinel di Windows, bagian dari paket 'smartmontools'."
-        echo
-        echo "Silakan install terlebih dahulu:"
-        echo "  Ubuntu/Debian : sudo apt install smartmontools"
-        echo "  Fedora        : sudo dnf install smartmontools"
-        echo "  Arch          : sudo pacman -S smartmontools"
-        echo
-        echo "Setelah terinstall, jalankan kembali menu ini."
-        return 1
-    fi
-
-    if [ "$EUID" -ne 0 ]; then
-        echo "[WARN] Tidak dijalankan sebagai root. Sebagian data SMART mungkin tidak lengkap"
-        echo "       atau device tidak terdeteksi sama sekali. Disarankan jalankan Tachys dengan sudo."
-        echo
-    fi
-
-    local scan_result
-    scan_result="$(smartctl --scan 2>/dev/null | awk '{print $1}')"
-
-    if [ -z "$scan_result" ]; then
-        echo "[WARN] Tidak ditemukan device disk yang bisa diperiksa smartctl."
-        echo "       Mencoba fallback ke daftar block device via lsblk ..."
-        if command -v lsblk >/dev/null 2>&1; then
-            scan_result="$(lsblk -dno NAME,TYPE 2>/dev/null \
-                | awk '$2=="disk" && $1 !~ /^(loop|ram|zram)/ {print "/dev/"$1}')"
-        fi
-    fi
-
-    if [ -z "$scan_result" ]; then
-        echo "[ERROR] Tidak ada device disk yang terdeteksi sama sekali."
-        return 1
-    fi
-
-    local dev info
-    for dev in $scan_result; do
-        echo "════════════════════════════════════════════════════════════"
-        echo "Device: $dev"
-        echo "════════════════════════════════════════════════════════════"
-
-        info="$(smartctl -i -H -A "$dev" 2>/dev/null)"
-
-        if [ -z "$info" ]; then
-            echo "[WARN] Tidak bisa membaca data SMART dari $dev."
-            echo "       Kemungkinan butuh akses root (jalankan dengan sudo) atau"
-            echo "       device tidak mendukung SMART (mis. USB flashdisk / SD card)."
-            echo
-            continue
-        fi
-
-        awk '
-            function after_colon(s) { sub(/^[^:]*:[ \t]*/, "", s); return s }
-
-            {
-                l = tolower($0)
-
-                if (model == "" && (l ~ /device model/ || l ~ /model number/))  model = after_colon($0)
-                else if (l ~ /overall-health self-assessment/)                  health = after_colon($0)
-                else if (temp == "" && l ~ /temperature_celsius/)               temp = $10        # SATA
-                else if (temp == "" && l ~ /^temperature:/)                     temp = $2         # NVMe
-                else if (l ~ /power_on_hours/)                                  poweron = $10     # SATA
-                else if (l ~ /^power on hours:/)                                poweron = $4      # NVMe
-                else if (l ~ /reallocated_sector_ct/)                           realloc = $10
-                else if (l ~ /current_pending_sector/)                          pending = $10
-                else if (l ~ /percentage used/)                                 pct_used = after_colon($0)
-                else if (l ~ /available spare:/)                                spare = after_colon($0)
-            }
-
-            END {
-                if (model != "")   printf "Model         : %s\n", model
-                printf "Status SMART  : %s\n", (health != "" ? health : "tidak tersedia dari device ini")
-                if (temp != "")    printf "Suhu          : %s C\n", temp
-                if (poweron != "") printf "Power-On Hours: %s jam\n", poweron
-
-                # SATA/HDD: reallocated & pending sectors
-                if (realloc != "") {
-                    printf "Bad Sectors   : %s (realokasi), pending: %s\n", realloc, (pending != "" ? pending : "0")
-                    if (realloc != "0" || (pending != "" && pending != "0"))
-                        print "[WARN] Terdeteksi bad sector! Pertimbangkan backup data segera."
-                }
-
-                # NVMe: percentage used & available spare
-                if (pct_used != "") printf "Wear Level    : %s terpakai dari usia pakai (NVMe)\n", pct_used
-                if (spare != "")    printf "Spare Blocks  : %s tersisa (NVMe)\n", spare
-            }
-        ' <<< "$info"
-
-        echo
-    done
-
-    echo "[INFO] Pemeriksaan SMART selesai."
-    echo "       Status 'PASSED'/'OK' = sehat. Jika 'FAILED' atau ada banyak bad sector,"
-    echo "       segera backup data dan pertimbangkan penggantian disk."
-    return 0
-}
-
 show_menu() {
     local C_SUB="\033[0;36m"
     local C_TEAL="\033[0;36m"
@@ -543,7 +545,7 @@ while true; do
             run_process_monitor
             ;;
         0)
-            echo "[INFO] Keluar dari Tachys. Sampai jumpa!"
+            echo "[INFO] Menutup Tachys. Sampai jumpa!"
             exit 0
             ;;
         *)

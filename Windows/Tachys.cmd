@@ -55,12 +55,12 @@ goto :eof
 echo -----------------------------------------------------
 echo         Pilih tool yang ingin dijalankan:
 echo.
-echo  [s] Buka Halaman Virus ^& threat protection (Windows Security)
+echo  [s] Buka Windows Security Virus ^& threat protection Settings
 echo   1. Cek Kesehatan HDD/SSD
 echo   2. Cek Status WiFi Card
-echo   3. Tes Keyboard
-echo   4. Tes Audio
-echo   5. Cek Kesehatan Baterai ^(+ Cycle Count^)
+echo   3. Tes Keyboard Input
+echo   4. Tes Audio Output
+echo   5. Cek Kesehatan Baterai
 echo   6. Cek Program Berat  
 echo   7. Nonaktifkan Fast Startup Control Panel
 echo   0. Keluar
@@ -447,7 +447,7 @@ if "%pilihan%"=="1" (
 ) else if /i "%pilihan%"=="s" (
     call :run_open_defender_settings
 ) else if "%pilihan%"=="0" (
-    echo [INFO] Keluar dari Tachys. Sampai jumpa^!
+    echo [INFO] Menutup Tachys. Sampai jumpa^!
     call :cleanup
     exit 0
 ) else (
