@@ -262,7 +262,7 @@ if errorlevel 1 (
     echo        ^(minimal lewat speaker internal/PC speaker^).
 ) else (
     echo [INFO] Jika Anda mendengar 2 nada notifikasi barusan, output audio berfungsi normal.
-    echo [TANYA] Tidak dengar suara? Cek volume/mute, kabel/headphone tersambung
+    echo         Tidak dengar suara? Cek volume/mute, kabel/headphone tersambung
     echo         dengan benar, dan pastikan default output device sudah benar.
 )
 
