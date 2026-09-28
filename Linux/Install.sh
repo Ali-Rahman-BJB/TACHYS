@@ -12,7 +12,7 @@ cat > "$DESKTOP_FILE" << 'EOF'
 [Desktop Entry]
 Type=Application
 Name=Tachys | SMK PGRI 1 Martapura
-Comment=Menjalankan script .sh (mis. dari flashdisk Tachys) di dalam terminal
+Comment=Menjalankan script .sh dari program Tachys
 Exec=bash %f
 Terminal=true
 Icon=utilities-terminal
