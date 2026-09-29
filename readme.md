@@ -1,5 +1,15 @@
 # TACHYS SCRIPTING
 
+<div align="center">
+    <p>
+        <a name="stars"><img src="https://img.shields.io/github/stars/Ali-Rahman-BJB/TACHYS?style=for-the-badge"></a>
+        <a name="forks"><img src="https://img.shields.io/github/forks/Ali-Rahman-BJB/TACHYS?logoColor=green&style=for-the-badge"></a>
+        <a name="contributions"><img src="https://img.shields.io/github/contributors/Ali-Rahman-BJB/TACHYS?logoColor=green&style=for-the-badge"></a>
+        <a name="madeWith"><img src="https://img.shields.io/badge/Made%20with-Markdown-1f425f.svg?style=for-the-badge"></a>
+        <a name="license"><img src="https://img.shields.io/github/license/Ali-Rahman-BJB/TACHYS?style=for-the-badge"></a>
+    </p>
+</div>
+
 ```text
 ▄█████ ██▄  ▄██ ██ ▄█▀   █████▄  ▄████  █████▄  ██   ▄██   ██▄  ▄██ ▄████▄ █████▄  ██████ ▄████▄ █████▄ ██  ██ █████▄  ▄████▄ 
 ▀▀▀▄▄▄ ██ ▀▀ ██ ████     ██▄▄█▀ ██  ▄▄▄ ██▄▄██▄ ██    ██   ██ ▀▀ ██ ██▄▄██ ██▄▄██▄   ██   ██▄▄██ ██▄▄█▀ ██  ██ ██▄▄██▄ ██▄▄██ 
@@ -73,7 +83,7 @@ Basic requirements:
 - PowerShell available by default on Windows
 - Command Prompt / PowerShell with enough privileges for certain checks
 - For features like Fast Startup and system settings, it is recommended to run as Administrator
-- For the keyboard tester, the file `KeyboardTestUtility.exe` must exist in `Application\WINDOWS` or in the appropriate location
+- For the keyboard tester, the file `KeyboardTestUtility.exe` must exist in `Application\\WINDOWS` or in the appropriate location
 
 Notes:
 
