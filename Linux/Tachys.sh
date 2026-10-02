@@ -266,35 +266,97 @@ run_wifi_check() {
 }
 
 
-run_keyboard_tester() {
-    local src_app="$FLASHDISK_ROOT/Application/LINUX/keyboard-tester/keyboard-tester"
-    local dst_app="$TMP_DIR/keyboard-tester"
+# Kumpulkan folder dasar untuk pencarian: lokasi skrip + 3 tingkat folder induknya
+search_roots() {
+    local d="$SCRIPT_DIR" i
+    for i in 1 2 3 4; do
+        printf '%s\n' "$d"
+        [ "$d" = "/" ] && break
+        d="$(dirname "$d")"
+    done
+}
 
-    echo "[INFO] Menyiapkan Keyboard Tester ..."
+# Cari binary keyboard-tester yang sudah jadi (file biasa, bukan .c)
+find_keyboard_binary() {
+    local r c
+    while IFS= read -r r; do
+        c="$(find "$r" -maxdepth 5 -type f -name 'keyboard-tester' \
+                 -not -path '*/.git/*' 2>/dev/null | head -n 1)"
+        if [ -n "$c" ]; then
+            printf '%s' "$c"
+            return 0
+        fi
+    done < <(search_roots)
+    return 1
+}
 
-    if [ ! -f "$src_app" ]; then
-        echo "[ERROR] File keyboard-tester tidak ditemukan di:"
-        echo "        $src_app"
-        echo "        Pastikan struktur folder flashdisk masih sesuai:"
-        echo "        TACHYS/Application/LINUX/keyboard-tester/keyboard-tester"
+# Cari source keyboard-tester.c untuk dibuild jika binary tidak ada
+find_keyboard_source() {
+    local r c
+    while IFS= read -r r; do
+        c="$(find "$r" -maxdepth 5 -type f -name 'keyboard-tester.c' \
+                 -not -path '*/.git/*' 2>/dev/null | head -n 1)"
+        if [ -n "$c" ]; then
+            printf '%s' "$c"
+            return 0
+        fi
+    done < <(search_roots)
+    return 1
+}
+
+build_keyboard_tester() {
+    local src="$1" out="$2"
+
+    command -v gcc >/dev/null 2>&1 || { echo "[ERROR] gcc tidak ditemukan. sudo apt install build-essential"; return 1; }
+    command -v sdl2-config >/dev/null 2>&1 || { echo "[ERROR] SDL2 dev tidak ditemukan. sudo apt install libsdl2-dev libsdl2-ttf-dev"; return 1; }
+
+    echo "[INFO] Binary belum ada, membangun dari source: $src"
+    # shellcheck disable=SC2046
+    if ! gcc -Wall -O2 $(sdl2-config --cflags) "$src" -o "$out" \
+            -lm $(sdl2-config --libs) -lSDL2_ttf; then
+        echo "[ERROR] Build gagal. Pastikan: sudo apt install build-essential libsdl2-dev libsdl2-ttf-dev"
         return 1
     fi
+    return 0
+}
+
+run_keyboard_tester() {
+    local src_app dst_app="$TMP_DIR/keyboard-tester" src_c
+
+    echo "[INFO] Menyiapkan Keyboard Tester ..."
 
     if ! mkdir -p "$TMP_DIR"; then
         echo "[ERROR] Gagal membuat direktori sementara: $TMP_DIR"
         return 1
     fi
 
-    if [ ! -x "$dst_app" ] || [ "$src_app" -nt "$dst_app" ]; then
-        if ! cp "$src_app" "$dst_app"; then
-            echo "[ERROR] Gagal menyalin file dari flashdisk ke $TMP_DIR"
-            echo "        Kemungkinan penyebab: flashdisk terlepas, ruang /tmp penuh,"
-            echo "        atau tidak ada izin tulis ke /tmp."
-            return 1
+    if src_app="$(find_keyboard_binary)"; then
+        echo "[INFO] Ditemukan: $src_app"
+        if [ ! -x "$dst_app" ] || [ "$src_app" -nt "$dst_app" ]; then
+            if ! cp "$src_app" "$dst_app" || ! chmod +x "$dst_app"; then
+                echo "[ERROR] Gagal menyalin/mengatur permission ke $TMP_DIR"
+                return 1
+            fi
         fi
+    elif src_c="$(find_keyboard_source)"; then
+        build_keyboard_tester "$src_c" "$dst_app" || return 1
+    else
+        echo "[ERROR] keyboard-tester (binary maupun keyboard-tester.c) tidak ditemukan."
+        echo "        Lokasi skrip   : $SCRIPT_DIR"
+        echo "        Folder dicari  :"
+        search_roots | sed 's/^/          /'
+        echo "        Isi folder skrip:"
+        ls -la "$SCRIPT_DIR" 2>&1 | sed 's/^/          /'
+        return 1
+    fi
 
-        if ! chmod +x "$dst_app"; then
-            echo "[ERROR] Gagal memberikan permission execute pada $dst_app"
+    if command -v ldd >/dev/null 2>&1; then
+        local missing
+        missing="$(ldd "$dst_app" 2>/dev/null | awk '/not found/ {print $1}')"
+        if [ -n "$missing" ]; then
+            echo "[ERROR] Library berikut belum terpasang:"
+            echo "$missing" | sed 's/^/        /'
+            echo "        Install: sudo apt install libsdl2-2.0-0 libsdl2-ttf-2.0-0"
             return 1
         fi
     fi
@@ -302,6 +364,7 @@ run_keyboard_tester() {
     echo "[INFO] Menjalankan Keyboard Tester ..."
     if ! "$dst_app"; then
         echo "[ERROR] Keyboard Tester gagal dijalankan atau keluar dengan error."
+        echo "        Jika 'Exec format error', build ulang di mesin ini dengan 'make'."
         return 1
     fi
 
