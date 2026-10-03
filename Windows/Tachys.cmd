@@ -163,7 +163,7 @@ if not exist "%KEYTEST_APP%" (
     echo         ke seluruh drive %DRIVE_ROOT%, tapi file tidak ditemukan.
     echo.
     echo [INFO]  Jika file sebelumnya ada lalu hilang, kemungkinan file terhapus
-    echo         atau dikarantina oleh Windows Security ^(Windows Defender^).
+    echo         atau dikarantina oleh Windows Security ^(Windows Security^).
     echo.
     echo [SOLUSI]
     echo 1. Unduh ulang aplikasinya melalui tautan berikut:
@@ -187,7 +187,7 @@ if "%RTP_STATUS%"=="1" (
     echo [PERINGATAN] Real-Time Protection Windows Security sedang AKTIF.
     echo              KeyboardTestUtility.exe TIDAK akan disalin/dijalankan, supaya
     echo              file aslinya di flashdisk tidak ikut dihapus/dikarantina.
-    echo              ^(Menyalin file saja sudah bisa memicu Windows Defender
+    echo              ^(Menyalin file saja sudah bisa memicu Windows Security
     echo              memindai lalu menghapus filenya.^)
     echo.
     echo [SOLUSI] Nonaktifkan sementara Real-Time Protection ^(menu 's' di
@@ -198,7 +198,7 @@ if "%RTP_STATUS%"=="1" (
 )
 
 if "%RTP_STATUS%"=="2" (
-    echo [WARN] Tidak bisa memastikan status Real-Time Protection ^(mungkin bukan Windows Defender/AV lain, atau perlu Administrator^).
+    echo [WARN] Tidak bisa memastikan status Real-Time Protection ^(mungkin bukan Windows Security/AV lain, atau perlu Administrator^).
     echo        Tachys akan tetap mencoba menjalankan Keyboard Tester, tapi jika file
     echo        tiba-tiba hilang/dihapus, kemungkinan penyebabnya adalah antivirus.
     echo.
@@ -219,7 +219,7 @@ if errorlevel 1 (
     echo         tidak ada izin tulis ke folder temp, atau file baru saja
     echo         dihapus/dikarantina oleh antivirus lain saat proses ini berjalan.
     echo.
-    echo [SOLUSI] Solusi: Matikan Real-time Protection di Windows Defender/Antivirus.
+    echo [SOLUSI] Solusi: Matikan Real-time Protection di Windows Security/Antivirus.
     echo.
     exit /b 1
 )
