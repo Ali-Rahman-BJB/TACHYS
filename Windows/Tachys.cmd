@@ -19,21 +19,16 @@ if "%~1"=="" (
 
 call :maximize_window
 
-:: (KeyboardTestUtility dicari saat menu [3] dipilih, bukan saat startup)
-
 set "TMP_DIR=%TEMP%\Tachys"
 if not exist "%TMP_DIR%" mkdir "%TMP_DIR%" >nul 2>&1
 
 goto :main
 
 :maximize_window
-:: Maksimalkan jendela terminal ini (conhost maupun Windows Terminal).
-:: Dicari lewat judul jendela "TACHYS", jadi tidak akan menyentuh jendela lain.
 powershell -NoProfile -Command "$c = 'using System; using System.Runtime.InteropServices; public class TW { [DllImport(' + [char]34 + 'user32.dll' + [char]34 + ')] public static extern bool ShowWindow(IntPtr h, int n); }'; Add-Type $c; Get-Process | Where-Object { $_.MainWindowHandle -ne 0 -and $_.MainWindowTitle -like '*TACHYS*' } | ForEach-Object { [TW]::ShowWindow($_.MainWindowHandle, 3) | Out-Null }; Start-Sleep -Milliseconds 400" >nul 2>&1
 goto :eof
 
 :get_term_size
-:: Ambil ukuran jendela terminal (baris x kolom) yang sedang terlihat.
 set "TERM_H="
 set "TERM_W="
 for /f "usebackq tokens=1,2" %%a in (`powershell -NoProfile -Command "$s = $Host.UI.RawUI.WindowSize; Write-Output ($s.Height.ToString() + ' ' + $s.Width.ToString())" 2^>nul`) do (

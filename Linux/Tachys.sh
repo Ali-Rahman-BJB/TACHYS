@@ -1,6 +1,4 @@
-#!/usr/bin/env bash
-# --- Auto-perbaiki line ending CRLF (file yang disalin lewat Windows) ---
-if [ -z "${TACHYS_FIXED:-}" ] && grep -q $'\r' "$0" 2>/dev/null; then export TACHYS_FIXED=1; if sed -i 's/\r$//' "$0" 2>/dev/null; then exec bash "$0" "$@"; else TACHYS_SELF="$0"; export TACHYS_SELF; _t="$(mktemp)"; tr -d '\r' < "$0" > "$_t"; exec bash "$_t" "$@"; fi; fi # fix-crlf
+if [ -z "${TACHYS_FIXED:-}" ] && grep -q $'\r' "$0" 2>/dev/null; then export TACHYS_FIXED=1; if sed -i 's/\r$//' "$0" 2>/dev/null; then exec bash "$0" "$@"; else TACHYS_SELF="$0"; export TACHYS_SELF; _t="$(mktemp)"; tr -d '\r' < "$0" > "$_t"; exec bash "$_t" "$@"; fi; fi
 set -u
 set -o pipefail
 
@@ -79,7 +77,6 @@ BANNER
     fi
 }
 
-# Maksimalkan jendela terminal (best effort, aman kalau tidak didukung).
 maximize_window() {
     [ -t 1 ] || return 0
     printf '\033[9;1t'
@@ -105,7 +102,6 @@ get_term_size() {
     case "$TERM_COLS" in ''|*[!0-9]*|0) TERM_COLS=80 ;; esac
 }
 
-# Cari tool yang bisa saja ada di /usr/sbin (tidak masuk PATH user biasa di Debian)
 find_tool() {
     local t="$1" p
     if p="$(command -v "$t" 2>/dev/null)" && [ -n "$p" ]; then
@@ -117,12 +113,10 @@ find_tool() {
     return 1
 }
 
-# ---------- Akses root untuk smartctl ----------
 SMARTCTL_BIN=""
 SMART_SUDO=0     # 1 = smartctl dipanggil lewat sudo (Tachys tidak perlu di-restart)
 SMART_ASKED=0    # pertanyaan hanya diajukan sekali per sesi
 
-# Panggil smartctl, otomatis lewat sudo jika pengguna memilih opsi itu
 smart() {
     if [ "$SMART_SUDO" = 1 ]; then
         sudo "$SMARTCTL_BIN" "$@"
@@ -131,7 +125,6 @@ smart() {
     fi
 }
 
-# Jalankan ulang seluruh Tachys sebagai root
 restart_as_root() {
     local self v
     local -a env_args=()
@@ -147,12 +140,10 @@ restart_as_root() {
     exec sudo env -u TACHYS_FIXED -u TACHYS_SELF "${env_args[@]}" bash "$self"
 }
 
-# Tanyakan cara mendapatkan akses root untuk smartctl (sekali per sesi)
 ask_root_for_smart() {
     [ "$EUID" -eq 0 ] && return 0
 
     if [ "$SMART_SUDO" = 1 ]; then
-        # sesi sudo bisa kedaluwarsa; segarkan agar tidak minta password di tengah scan
         sudo -v 2>/dev/null || SMART_SUDO=0
         [ "$SMART_SUDO" = 1 ] && return 0
     fi
@@ -187,7 +178,7 @@ ask_root_for_smart() {
     case "${choice:-2}" in
         1)
             if sudo -v; then
-                restart_as_root   # tidak kembali jika berhasil
+                restart_as_root  
             fi
             echo "[ERROR] Gagal mendapatkan akses sudo. Melanjutkan tanpa root."
             ;;
@@ -241,7 +232,6 @@ run_disk_health() {
         fi
     fi
 
-    # buang device virtual dan partisi khusus eMMC (boot0/boot1/rpmb)
     scan_result="$(printf '%s\n' "$scan_result" \
         | grep -Ev '/(loop|ram|zram|sr)[0-9]*$|/mmcblk[0-9]+(boot[0-9]+|rpmb)$')"
 
@@ -279,7 +269,6 @@ run_disk_health() {
 
         info="$(smart -i -H -A "$dev" 2>/dev/null)"
         if ! grep -qiE "$pat" <<< "$info"; then
-            # bridge USB-SATA sering butuh mode -d sat
             alt="$(smart -d sat -i -H -A "$dev" 2>/dev/null)"
             if grep -qiE "$pat" <<< "$alt"; then
                 info="$alt"
@@ -292,7 +281,6 @@ run_disk_health() {
             echo "Tipe          : $kind"
             echo "Status SMART  : tidak didukung oleh device ini"
 
-            # eMMC punya indikator usia pakai sendiri lewat sysfs
             local lt="/sys/block/$name/device/life_time" eol="/sys/block/$name/device/pre_eol_info"
             if [ -r "$lt" ] || [ -r "$eol" ]; then
                 local a b v e
@@ -365,7 +353,6 @@ run_disk_health() {
 }
 
 
-# Tampilkan driver, modul, bus, dan nama perangkat WiFi card
 show_wifi_driver() {
     local iface="$1"
     local devdir="/sys/class/net/$iface/device"
@@ -385,7 +372,6 @@ show_wifi_driver() {
         bus="$(basename "$(readlink -f "$devdir/subsystem")")"
     fi
 
-    # Nama chipset / perangkat
     case "$bus" in
         pci)
             slot="$(basename "$(readlink -f "$devdir")")"
@@ -410,7 +396,6 @@ show_wifi_driver() {
             ;;
     esac
 
-    # Versi driver & firmware (tidak butuh root)
     if bin="$(find_tool ethtool)"; then
         local et
         et="$("$bin" -i "$iface" 2>/dev/null)"
@@ -557,8 +542,6 @@ run_wifi_check() {
     return 0
 }
 
-
-# Kumpulkan folder dasar untuk pencarian: lokasi skrip + 3 tingkat folder induknya
 search_roots() {
     local d="$SCRIPT_DIR" i
     for i in 1 2 3 4; do
@@ -568,7 +551,6 @@ search_roots() {
     done
 }
 
-# Cari binary keyboard-tester yang sudah jadi (file biasa, bukan .c)
 find_keyboard_binary() {
     local r c
     while IFS= read -r r; do
@@ -582,7 +564,6 @@ find_keyboard_binary() {
     return 1
 }
 
-# Cari source keyboard-tester.c untuk dibuild jika binary tidak ada
 find_keyboard_source() {
     local r c
     while IFS= read -r r; do
@@ -603,7 +584,6 @@ build_keyboard_tester() {
     command -v sdl2-config >/dev/null 2>&1 || { echo "[ERROR] SDL2 dev tidak ditemukan. sudo apt install libsdl2-dev libsdl2-ttf-dev"; return 1; }
 
     echo "[INFO] Binary belum ada, membangun dari source: $src"
-    # shellcheck disable=SC2046
     if ! gcc -Wall -O2 $(sdl2-config --cflags) "$src" -o "$out" \
             -lm $(sdl2-config --libs) -lSDL2_ttf; then
         echo "[ERROR] Build gagal. Pastikan: sudo apt install build-essential libsdl2-dev libsdl2-ttf-dev"
@@ -676,7 +656,7 @@ run_audio_output_test() {
     fi
 
     if command -v aplay >/dev/null 2>&1 && command -v speaker-test >/dev/null 2>&1; then
-        : # sudah tercover di atas
+        : 
     fi
 
     echo "[ERROR] Tool 'speaker-test' (paket alsa-utils) tidak ditemukan."
@@ -882,8 +862,6 @@ show_menu() {
     blank
 }
 
-# Pilih tampilan terbesar yang muat penuh di jendela (tanpa scroll / terpotong).
-# Urutan: asli -> rapat -> menu 2 kolom -> tanpa ASCII -> ringkas.
 show_screen() {
     get_term_size
     local mode out n
@@ -896,11 +874,9 @@ show_screen() {
             mini)   BLANKS=0; ART=0; MINI=1 ;;
         esac
         [ "$mode" = mini ] && break
-        # banner ASCII lebar 77 kolom, jadi butuh minimal 78 kolom
         if [ "$ART" = 1 ] && [ "$TERM_COLS" -lt 78 ]; then continue; fi
         out="$(show_banner; show_menu; echo x)"
         n="$(printf '%s\n' "$out" | wc -l)"
-        # n = baris terpakai termasuk baris prompt; sisakan 1 baris cadangan
         if [ "$(( n + 1 ))" -le "$TERM_ROWS" ]; then break; fi
     done
     show_banner
