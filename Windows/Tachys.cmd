@@ -11,22 +11,15 @@ set "DRIVE_ROOT=%~d0\"
 if /i "%~1"=="__KEEP_OPEN__" goto :setup_paths
 if "%~1"=="" (
     echo Menyiapkan Tachys, mohon tunggu sebentar...
-    start "" /max "%ComSpec%" /k "%~f0" __KEEP_OPEN__
+    start "" /max "%ComSpec%" /k ""%~f0" __KEEP_OPEN__"
     exit /b 0
 )
 
 :setup_paths
-
-call :maximize_window
-
 set "TMP_DIR=%TEMP%\Tachys"
 if not exist "%TMP_DIR%" mkdir "%TMP_DIR%" >nul 2>&1
 
 goto :main
-
-:maximize_window
-powershell -NoProfile -Command "$c = 'using System; using System.Runtime.InteropServices; public class TW { [DllImport(' + [char]34 + 'user32.dll' + [char]34 + ')] public static extern bool ShowWindow(IntPtr h, int n); }'; Add-Type $c; Get-Process | Where-Object { $_.MainWindowHandle -ne 0 -and $_.MainWindowTitle -like '*TACHYS*' } | ForEach-Object { [TW]::ShowWindow($_.MainWindowHandle, 3) | Out-Null }; Start-Sleep -Milliseconds 400" >nul 2>&1
-goto :eof
 
 :get_term_size
 set "TERM_H="
@@ -42,10 +35,6 @@ goto :eof
 :show_banner
 cls
 call :get_term_size
-:: Pilih tampilan yang muat satu layar penuh (tanpa scroll / terpotong):
-::   full    = banner ASCII besar  (butuh min 34 baris x 64 kolom)
-::   compact = tanpa ASCII art      (butuh min 17 baris x 66 kolom)
-::   mini    = paling ringkas       (untuk jendela sangat kecil)
 set "TIER=compact"
 if %TERM_H% GEQ 34 if %TERM_W% GEQ 64 set "TIER=full"
 if %TERM_H% LSS 17 set "TIER=mini"
@@ -127,7 +116,28 @@ goto :eof
 echo [INFO] Memeriksa kesehatan HDD/SSD (Storage Reliability Counter) ...
 echo.
 
-powershell -NoProfile -Command "$disks = Get-PhysicalDisk; if (-not $disks) { Write-Host '[ERROR] Tidak ada disk yang terdeteksi di sistem ini.' } else { foreach ($d in $disks) { Write-Host '===================================================='; Write-Host ('Device        : ' + $d.DeviceId + ' - ' + $d.FriendlyName); Write-Host ('Media Type    : ' + $d.MediaType); Write-Host ('Health Status : ' + $d.HealthStatus); Write-Host ('Ukuran        : ' + [math]::Round($d.Size/1GB,1) + ' GB'); try { $rel = $d | Get-StorageReliabilityCounter -ErrorAction Stop; if ($null -ne $rel.Wear) { Write-Host ('Wear Level    : ' + $rel.Wear + '%% (persentase keausan HDD/SSD)') } else { Write-Host 'Wear Level    : tidak tersedia dari device ini' }; Write-Host ('Read Errors   : ' + $rel.ReadErrorsTotal); Write-Host ('Write Errors  : ' + $rel.WriteErrorsTotal); if ($rel.Temperature) { Write-Host ('Suhu          : ' + $rel.Temperature + ' C') } } catch { Write-Host '[WARN] Data reliability counter tidak tersedia untuk device ini.'; Write-Host '       (Perlu dijalankan sebagai Administrator, atau device tidak mendukung fitur ini.)' } } }"
+powershell -NoProfile -Command ^
+    "$disks = @(Get-PhysicalDisk);" ^
+    "if ($disks.Count -eq 0) { Write-Host '[ERROR] Tidak ada disk yang terdeteksi di sistem ini.'; exit 0 };" ^
+    "foreach ($d in $disks) {" ^
+    "  Write-Host '====================================================';" ^
+    "  Write-Host ('Device        : ' + $d.DeviceId + ' - ' + $d.FriendlyName);" ^
+    "  Write-Host ('Media Type    : ' + $d.MediaType + ' (' + $d.BusType + ')');" ^
+    "  Write-Host ('Health Status : ' + $d.HealthStatus);" ^
+    "  if ($d.HealthStatus -ne 'Healthy') { Write-Host '[WARN] Status disk bukan Healthy! Segera backup data.' };" ^
+    "  Write-Host ('Ukuran        : ' + [math]::Round($d.Size/1GB,1) + ' GB');" ^
+    "  try {" ^
+    "    $rel = $d | Get-StorageReliabilityCounter -ErrorAction Stop;" ^
+    "    if ($null -ne $rel.Wear) { Write-Host ('Wear Level    : ' + $rel.Wear + '%% (persentase keausan HDD/SSD)'); if ($rel.Wear -ge 80) { Write-Host '[WARN] Keausan sudah tinggi, pertimbangkan backup/penggantian.' } } else { Write-Host 'Wear Level    : tidak tersedia dari device ini' };" ^
+    "    if ($null -ne $rel.PowerOnHours) { Write-Host ('Power-On Hours: ' + $rel.PowerOnHours + ' jam') };" ^
+    "    Write-Host ('Read Errors   : ' + $rel.ReadErrorsTotal);" ^
+    "    Write-Host ('Write Errors  : ' + $rel.WriteErrorsTotal);" ^
+    "    if ($rel.Temperature) { Write-Host ('Suhu          : ' + $rel.Temperature + ' C') }" ^
+    "  } catch {" ^
+    "    Write-Host '[WARN] Data reliability counter tidak tersedia untuk device ini.';" ^
+    "    Write-Host '       (Perlu dijalankan sebagai Administrator, atau device tidak mendukung fitur ini.)'" ^
+    "  }" ^
+    "}"
 
 echo.
 echo [INFO] Pemeriksaan selesai.
@@ -151,14 +161,14 @@ echo.
 if not exist "%TMP_DIR%" mkdir "%TMP_DIR%" >nul 2>&1
 netsh wlan show interfaces > "%TMP_DIR%\wifi.txt" 2>nul
 
-findstr /i /c:"tidak dapat ditemukan" /c:"not run on" /c:"no wireless interface" "%TMP_DIR%\wifi.txt" >nul 2>&1
+findstr /i /c:"tidak dapat ditemukan" /c:"tidak ada antarmuka" /c:"not running" /c:"no wireless interface" "%TMP_DIR%\wifi.txt" >nul 2>&1
 if not errorlevel 1 (
     echo [WARN] Tidak ditemukan interface WiFi pada sistem ini.
     echo        ^(Wajar jika laptop/PC ini tidak memiliki WiFi card, atau adapter/driver-nya mati.^)
     exit /b 1
 )
 
-findstr /i /c:"Name" /c:"Nama" /c:"State" /c:"Status" /c:"SSID" /c:"Signal" /c:"Sinyal" /c:"Radio status" /c:"Receive rate" /c:"Transmit rate" /c:"Laju" "%TMP_DIR%\wifi.txt"
+findstr /i /c:"Name" /c:"Nama" /c:"State" /c:"Status" /c:"SSID" /c:"Signal" /c:"Sinyal" /c:"Radio status" /c:"Receive rate" /c:"Transmit rate" /c:"Laju" /c:"Channel" /c:"Saluran" /c:"Band" "%TMP_DIR%\wifi.txt"
 
 echo.
 echo [INFO] Uji konektivitas ke Google.com via ping ...
@@ -176,7 +186,6 @@ exit /b 0
 
 :: ============================================================
 :: 2b. ADAPTER DETECTION (dipanggil dari menu WiFi)
-::     PnP status, driver, link speed, signal, gateway ping, packet loss
 :: ============================================================
 :wifi_adapter_detect
 echo [INFO] Adapter Detection ^(PnP, driver, link speed, signal, gateway ping, packet loss^) ...
@@ -269,7 +278,7 @@ if not exist "%KEYTEST_APP%" (
     echo    https://www.softpedia.com/get/System/System-Info/Keyboard-Test-Utility.shtml#download
     echo.
     echo 2. Ekstrak/simpan file KeyboardTestUtility.exe ke dalam folder:
-    echo    %DRIVE_ROOT%\Application\WINDOWS
+    echo    %DRIVE_ROOT%Application\WINDOWS
     echo.
     echo 3. Pastikan untuk menambahkan 'Exclusion' di Windows Security agar file
     echo    tidak terhapus kembali secara otomatis.
@@ -342,8 +351,10 @@ echo.
 
 powershell -NoProfile -Command ^
     "try {" ^
-    "  [System.Media.SystemSounds]::Asterisk.Play(); Start-Sleep -Milliseconds 700;" ^
-    "  [System.Media.SystemSounds]::Exclamation.Play(); Start-Sleep -Milliseconds 700;" ^
+    "  $dir = Join-Path $env:WINDIR 'Media';" ^
+    "  $f = @('Windows Notify System Generic.wav','Windows Ding.wav','Alarm01.wav','chimes.wav','ding.wav') | ForEach-Object { Join-Path $dir $_ } | Where-Object { Test-Path -LiteralPath $_ } | Select-Object -First 1;" ^
+    "  if ($f) { $sp = New-Object System.Media.SoundPlayer $f; $sp.PlaySync(); Start-Sleep -Milliseconds 300; $sp.PlaySync() }" ^
+    "  else { [System.Media.SystemSounds]::Asterisk.Play(); Start-Sleep -Milliseconds 700; [System.Media.SystemSounds]::Exclamation.Play(); Start-Sleep -Milliseconds 700 };" ^
     "  exit 0" ^
     "} catch {" ^
     "  exit 1" ^
@@ -360,7 +371,7 @@ if errorlevel 1 (
     echo [INFO] Jika Anda mendengar bunyi beep barusan, output audio berfungsi
     echo        ^(minimal lewat speaker internal/PC speaker^).
 ) else (
-    echo [INFO] Jika Anda mendengar 2 nada notifikasi barusan, output audio berfungsi normal.
+    echo [INFO] Jika Anda mendengar 2 kali bunyi notifikasi barusan, output audio berfungsi normal.
     echo         Tidak dengar suara? Cek volume/mute, kabel/headphone tersambung
     echo         dengan benar, dan pastikan default output device sudah benar.
 )
@@ -437,7 +448,32 @@ exit /b 0
 echo [INFO] Memeriksa proses antivirus / program berat yang berjalan ...
 echo.
 
-powershell -NoProfile -Command "$all = Get-Process; Write-Host '--- 10 proses dengan waktu CPU kumulatif tertinggi (detik) ---'; $all | Sort-Object CPU -Descending | Select-Object -First 10 Id,ProcessName,CPU,@{Name='Mem(MB)';Expression={[math]::Round($_.WorkingSet/1MB,1)}} | Format-Table -AutoSize; Write-Host ''; Write-Host '--- Produk antivirus / security terdaftar (Security Center) ---'; try { $av = Get-CimInstance -Namespace 'root/SecurityCenter2' -ClassName AntiVirusProduct -ErrorAction Stop; if ($av) { $av | Select-Object displayName | Format-Table -AutoSize } else { Write-Host 'Tidak ditemukan produk antivirus yang terdaftar di Security Center.' } } catch { Write-Host 'Tidak bisa membaca data Security Center (coba jalankan sebagai Administrator).' }; Write-Host ''; Write-Host '--- Proses dengan pemakaian memori sangat besar (lebih dari 500MB) ---'; $heavy = $all | Where-Object { $_.WorkingSet -gt 500MB } | Sort-Object WorkingSet -Descending; if (-not $heavy) { Write-Host 'Tidak ada proses yang terdeteksi memakai memori sangat besar saat ini.' } else { $heavy | Select-Object Id,ProcessName,@{Name='Mem(MB)';Expression={[math]::Round($_.WorkingSet/1MB,1)}} | Format-Table -AutoSize; while ($true) { $pidInput = Read-Host 'Masukkan PID yang ingin dimatikan (kosongkan untuk selesai)'; if ([string]::IsNullOrWhiteSpace($pidInput)) { break }; if ($pidInput -notmatch '^[0-9]+$') { Write-Host '[ERROR] PID tidak valid, harus berupa angka.'; continue }; $proc = Get-Process -Id $pidInput -ErrorAction SilentlyContinue; if (-not $proc) { Write-Host ('[ERROR] PID ' + $pidInput + ' tidak ditemukan (mungkin sudah berhenti).'); continue }; $confirm = Read-Host ('Yakin ingin mematikan proses ' + $proc.ProcessName + ' (PID ' + $pidInput + ')? [Y/N]'); if ($confirm -match '^[Yy]') { try { Stop-Process -Id $pidInput -Force -ErrorAction Stop; Write-Host ('[INFO] Proses ' + $proc.ProcessName + ' (PID ' + $pidInput + ') berhasil dihentikan.') } catch { Write-Host '[ERROR] Gagal menghentikan proses. Mungkin perlu izin Administrator.' } } else { Write-Host '[INFO] Dilewati, proses tidak dimatikan.' } } }"
+powershell -NoProfile -Command ^
+    "$n = [Environment]::ProcessorCount;" ^
+    "$base = @{}; foreach ($p in Get-Process) { if ($null -ne $p.CPU) { $base[$p.Id] = $p.CPU } };" ^
+    "Write-Host '[INFO] Mengambil sampel penggunaan CPU selama 1 detik ...'; Start-Sleep -Seconds 1;" ^
+    "$rows = foreach ($p in Get-Process) { $pct = 0; if ($base.ContainsKey($p.Id) -and $null -ne $p.CPU) { $pct = [math]::Round(($p.CPU - $base[$p.Id]) / $n * 100, 1) }; [pscustomobject]@{ Id = $p.Id; Name = $p.ProcessName; 'CPU(%%)' = $pct; 'Mem(MB)' = [math]::Round($p.WorkingSet / 1MB, 1) } };" ^
+    "Write-Host '';" ^
+    "Write-Host '--- 10 proses dengan beban CPU tertinggi (sampel 1 detik) ---';" ^
+    "$rows | Sort-Object 'CPU(%%)' -Descending | Select-Object -First 10 | Format-Table Id, Name, 'CPU(%%)', 'Mem(MB)' -AutoSize;" ^
+    "Write-Host '--- Produk antivirus / security terdaftar (Security Center) ---';" ^
+    "try { $av = Get-CimInstance -Namespace 'root/SecurityCenter2' -ClassName AntiVirusProduct -ErrorAction Stop; if ($av) { $av | Select-Object displayName | Format-Table -AutoSize } else { Write-Host 'Tidak ditemukan produk antivirus yang terdaftar di Security Center.' } } catch { Write-Host 'Tidak bisa membaca data Security Center (coba jalankan sebagai Administrator).' };" ^
+    "Write-Host '';" ^
+    "Write-Host '--- Proses berat (memori lebih dari 500MB atau CPU lebih dari 50%%) ---';" ^
+    "$heavy = @($rows | Where-Object { $_.'Mem(MB)' -gt 500 -or $_.'CPU(%%)' -gt 50 } | Sort-Object 'Mem(MB)' -Descending);" ^
+    "if ($heavy.Count -eq 0) { Write-Host 'Tidak ada proses yang terdeteksi memakai resource sangat berat saat ini.'; exit 0 };" ^
+    "$heavy | Format-Table Id, Name, 'CPU(%%)', 'Mem(MB)' -AutoSize;" ^
+    "$protect = @('System','Idle','Registry','smss','csrss','wininit','winlogon','lsass','services','svchost','dwm','explorer','fontdrvhost','MsMpEng','Memory Compression','conhost','cmd','powershell');" ^
+    "while ($true) {" ^
+    "  $pidInput = Read-Host 'Masukkan PID yang ingin dimatikan (kosongkan untuk selesai)';" ^
+    "  if ([string]::IsNullOrWhiteSpace($pidInput)) { break };" ^
+    "  if ($pidInput -notmatch '^[0-9]+$') { Write-Host '[ERROR] PID tidak valid, harus berupa angka.'; continue };" ^
+    "  $proc = Get-Process -Id $pidInput -ErrorAction SilentlyContinue;" ^
+    "  if (-not $proc) { Write-Host ('[ERROR] PID ' + $pidInput + ' tidak ditemukan (mungkin sudah berhenti).'); continue };" ^
+    "  if (($protect -contains $proc.ProcessName) -or ([int]$pidInput -eq $PID)) { Write-Host ('[ERROR] ' + $proc.ProcessName + ' adalah proses sistem penting atau Tachys sendiri, tidak boleh dimatikan.'); continue };" ^
+    "  $confirm = Read-Host ('Yakin ingin mematikan proses ' + $proc.ProcessName + ' (PID ' + $pidInput + ')? [Y/N]');" ^
+    "  if ($confirm -match '^[Yy]') { try { Stop-Process -Id $pidInput -Force -ErrorAction Stop; Write-Host ('[INFO] Proses ' + $proc.ProcessName + ' (PID ' + $pidInput + ') berhasil dihentikan.') } catch { Write-Host '[ERROR] Gagal menghentikan proses. Mungkin perlu izin Administrator.' } } else { Write-Host '[INFO] Dilewati, proses tidak dimatikan.' }" ^
+    "}"
 
 exit /b 0
 
@@ -448,8 +484,8 @@ exit /b 0
 echo [INFO] Mengecek status Fast Startup dan hak akses Administrator ...
 echo.
 
-net session >nul 2>&1
-if not "%errorlevel%"=="0" (
+fltmc >nul 2>&1
+if errorlevel 1 (
     echo [ERROR] Fitur Fast Startup diatur lewat registry HKLM, jadi butuh
     echo         hak akses Administrator untuk mengubahnya.
     echo.
@@ -461,10 +497,13 @@ if not "%errorlevel%"=="0" (
 powershell -NoProfile -Command ^
     "$key = 'HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager\Power';" ^
     "$current = (Get-ItemProperty -Path $key -Name HiberbootEnabled -ErrorAction SilentlyContinue).HiberbootEnabled;" ^
-    "if ($null -eq $current) { Write-Host '[INFO] Fast Startup sepertinya sudah tidak aktif di sistem ini (key tidak ditemukan).' }" ^
-    "elseif ($current -eq 0) { Write-Host '[INFO] Fast Startup memang sudah nonaktif sebelumnya.' }" ^
-    "else { Write-Host ('[INFO] Fast Startup saat ini AKTIF (HiberbootEnabled=' + $current + '), sedang dinonaktifkan...') };" ^
-    "try { Set-ItemProperty -Path $key -Name HiberbootEnabled -Value 0 -Type DWord -ErrorAction Stop; Write-Host '[OK] Fast Startup berhasil dinonaktifkan (HiberbootEnabled=0).' } catch { Write-Host '[ERROR] Gagal mengubah registry. Pastikan dijalankan sebagai Administrator.'; Write-Host $_.Exception.Message }"
+    "if ($null -eq $current) { Write-Host '[INFO] Fast Startup sepertinya sudah tidak aktif di sistem ini (key tidak ditemukan).'; exit 3 };" ^
+    "if ($current -eq 0) { Write-Host '[INFO] Fast Startup memang sudah nonaktif sebelumnya.'; exit 3 };" ^
+    "Write-Host ('[INFO] Fast Startup saat ini AKTIF (HiberbootEnabled=' + $current + '), sedang dinonaktifkan...');" ^
+    "try { Set-ItemProperty -Path $key -Name HiberbootEnabled -Value 0 -Type DWord -ErrorAction Stop; Write-Host '[OK] Fast Startup berhasil dinonaktifkan (HiberbootEnabled=0).'; exit 0 } catch { Write-Host '[ERROR] Gagal mengubah registry. Pastikan dijalankan sebagai Administrator.'; Write-Host $_.Exception.Message; exit 1 }"
+
+if errorlevel 3 exit /b 0
+if errorlevel 1 exit /b 1
 
 echo.
 echo [INFO] Perubahan berlaku penuh setelah komputer RESTART (bukan cukup shutdown biasa,
@@ -473,11 +512,10 @@ echo [INFO] Untuk verifikasi manual: Control Panel ^> Power Options ^>
 echo        "Choose what the power buttons do" ^> opsi "Turn on fast startup" seharusnya
 echo        sudah tidak tersedia/tercentang.
 echo.
-
 exit /b 0
 
 :: ============================================================
-:: 8. BUKA PENGATURAN REAL-TIME PROTECTION (MANUAL)
+:: 8. BUKA PENGATURAN REAL-TIME PROTECTION (MANUAL, menu [s])
 :: ============================================================
 :run_open_defender_settings
 echo [INFO] Membuka halaman Virus ^& threat protection settings di Windows Security ...
@@ -510,15 +548,6 @@ if exist "%TMP_DIR%" (
 goto :eof
 
 :: ============================================================
-:: WAIT FOR USER BEFORE CLOSING WINDOW
-:: ============================================================
-:wait_for_key
-echo.
-echo Tekan sembarang tombol untuk menutup jendela...
-pause >nul
-goto :eof
-
-:: ============================================================
 :: MAIN LOOP
 :: ============================================================
 :main
@@ -528,6 +557,8 @@ call :show_menu
 set "pilihan="
 set /p pilihan="Masukkan pilihan [0-7, s]: "
 echo.
+if not defined pilihan goto :main
+set "pilihan=%pilihan:"=%"
 
 if "%pilihan%"=="1" (
     call :run_disk_health
@@ -554,5 +585,6 @@ if "%pilihan%"=="1" (
 )
 
 echo.
-pause
+echo Tekan sembarang tombol untuk kembali ke menu...
+pause >nul
 goto :main

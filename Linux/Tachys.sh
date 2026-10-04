@@ -1,17 +1,18 @@
-if [ -z "${TACHYS_FIXED:-}" ] && grep -q $'\r' "$0" 2>/dev/null; then export TACHYS_FIXED=1; if sed -i 's/\r$//' "$0" 2>/dev/null; then exec bash "$0" "$@"; else TACHYS_SELF="$0"; export TACHYS_SELF; _t="$(mktemp)"; tr -d '\r' < "$0" > "$_t"; exec bash "$_t" "$@"; fi; fi
+if [ -z "${TACHYS_FIXED:-}" ] && grep -q $'\r' "$0" 2>/dev/null; then export TACHYS_FIXED=1; if sed -i 's/\r$//' "$0" 2>/dev/null; then exec bash "$0" "$@"; else export TACHYS_SELF="$0"; _t="$(mktemp)"; export TACHYS_TMPSELF="$_t"; tr -d '\r' < "$0" > "$_t"; exec bash "$_t" "$@"; fi; fi;
 set -u
 set -o pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${TACHYS_SELF:-$0}")" && pwd)"
-
-FLASHDISK_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
-
-TMP_DIR="/tmp/Tachys"
+TMP_DIR=""
 
 cleanup() {
-    if [ -d "$TMP_DIR" ]; then
+    if [ -n "$TMP_DIR" ] && [ -d "$TMP_DIR" ]; then
         rm -rf "$TMP_DIR"
     fi
+    if [ -n "${TACHYS_TMPSELF:-}" ]; then
+        rm -f "$TACHYS_TMPSELF"
+    fi
+    return 0
 }
 trap cleanup EXIT
 
@@ -22,16 +23,18 @@ read_sys() {
     printf -v "$2" '%s' "$_v"
 }
 
-# Mode tampilan (diatur oleh show_screen). Nilai bawaan = tampilan asli.
-BLANKS=1     # 1 = pakai baris kosong antar bagian (asli), 0 = rapatkan
-ART=1        # 1 = tampilkan banner ASCII
-MENU2=0      # 1 = menu 2 kolom
-MINI=0       # 1 = tampilan paling ringkas
+BLANKS=1
+ART=1
+MENU2=0
+MINI=0
 TERM_ROWS=24
 TERM_COLS=80
 
 blank() { [ "$BLANKS" = 1 ] && echo; return 0; }
 
+# ============================================================
+# TAMPILAN: BANNER, MENU, UKURAN TERMINAL
+# ============================================================
 show_banner() {
     clear
 
@@ -48,12 +51,12 @@ show_banner() {
     if [ "$ART" = 1 ]; then
     printf '%b' "${C_ART}"; blank
     cat << 'BANNER'
-░██████╗███╗░░░███╗██╗░░██╗  ██████╗░░██████╗░██████╗░██╗  ░░███╗░░
-██╔════╝████╗░████║██║░██╔╝  ██╔══██╗██╔════╝░██╔══██╗██║  ░████║░░
-╚█████╗░██╔████╔██║█████═╝░  ██████╔╝██║░░██╗░██████╔╝██║  ██╔██║░░
-░╚═══██╗██║╚██╔╝██║██╔═██╗░  ██╔═══╝░██║░░╚██╗██╔══██╗██║  ╚═╝██║░░
-██████╔╝██║░╚═╝░██║██║░╚██╗  ██║░░░░░╚██████╔╝██║░░██║██║  ███████╗
-╚═════╝░╚═╝░░░░░╚═╝╚═╝░░╚═╝  ╚═╝░░░░░░╚═════╝░╚═╝░░╚═╝╚═╝  ╚══════╝
+░██████╗███╗░░░███╗██╗░░██╗  ██████╗░░██████╗░██████╗░██╗  ░░███╗░░
+██╔════╝████╗░████║██║░██╔╝  ██╔══██╗██╔════╝░██╔══██╗██║  ░████║░░
+╚█████╗░██╔████╔██║█████═╝░  ██████╔╝██║░░██╗░██████╔╝██║  ██╔██║░░
+░╚═══██╗██║╚██╔╝██║██╔═██╗░  ██╔═══╝░██║░░╚██╗██╔══██╗██║  ╚═╝██║░░
+██████╔╝██║░╚═╝░██║██║░╚██╗  ██║░░░░░╚██████╔╝██║░░██║██║  ███████╗
+╚═════╝░╚═╝░░░░░╚═╝╚═╝░░╚═╝  ╚═╝░░░░░░╚═════╝░╚═╝░░╚═╝╚═╝  ╚══════╝
 ███╗░░░███╗░█████╗░██████╗░████████╗░█████╗░██████╗░██╗░░░██╗██████╗░░█████╗░
 ████╗░████║██╔══██╗██╔══██╗╚══██╔══╝██╔══██╗██╔══██╗██║░░░██║██╔══██╗██╔══██╗
 ██╔████╔██║███████║██████╔╝░░░██║░░░███████║██████╔╝██║░░░██║██████╔╝███████║
@@ -102,6 +105,58 @@ get_term_size() {
     case "$TERM_COLS" in ''|*[!0-9]*|0) TERM_COLS=80 ;; esac
 }
 
+show_menu() {
+    local C_SUB="\033[0;36m"
+    local C_TEAL="\033[0;36m"
+    local C_LINE="\033[1;32m"
+    local C_RST="\033[0m"
+    local LINE="════════════════════════════════════════════════════════════════════════════"
+
+    [ "$TERM_COLS" -lt 77 ] && LINE="${LINE:0:$(( TERM_COLS - 1 ))}"
+
+    [ "$MINI" = 1 ] || echo -e "${C_LINE}${LINE}${C_RST}"
+    echo -e "${C_SUB}        Pilih tool yang ingin dijalankan:${C_RST}"
+    blank
+    if [ "$MENU2" = 1 ]; then
+        printf "${C_TEAL}  %-30s%s${C_RST}\n" "1. Cek Kesehatan HDD/SSD" "5. Cek Kesehatan Baterai"
+        printf "${C_TEAL}  %-30s%s${C_RST}\n" "2. Cek Status WiFi Card"  "6. Cek Program Berat"
+        printf "${C_TEAL}  %-30s%s${C_RST}\n" "3. Tes Keyboard"          "0. Keluar"
+        printf "${C_TEAL}  %-30s%s${C_RST}\n" "4. Tes Audio"             ""
+    else
+        echo -e "${C_TEAL}  1. Cek Kesehatan HDD/SSD${C_RST}"
+        echo -e "${C_TEAL}  2. Cek Status WiFi Card${C_RST}"
+        echo -e "${C_TEAL}  3. Tes Keyboard${C_RST}"
+        echo -e "${C_TEAL}  4. Tes Audio${C_RST}"
+        echo -e "${C_TEAL}  5. Cek Kesehatan Baterai${C_RST}"
+        echo -e "${C_TEAL}  6. Cek Program Berat${C_RST}"
+        echo -e "${C_TEAL}  0. Keluar${C_RST}"
+    fi
+    blank
+    [ "$MINI" = 1 ] || echo -e "${C_LINE}${LINE}${C_RST}"
+    blank
+}
+
+show_screen() {
+    get_term_size
+    local mode out n
+    for mode in roomy tight twocol noart mini; do
+        BLANKS=1; ART=1; MENU2=0; MINI=0
+        case "$mode" in
+            tight)  BLANKS=0 ;;
+            twocol) BLANKS=0; MENU2=1 ;;
+            noart)  BLANKS=0; ART=0 ;;
+            mini)   BLANKS=0; ART=0; MINI=1 ;;
+        esac
+        [ "$mode" = mini ] && break
+        if [ "$ART" = 1 ] && [ "$TERM_COLS" -lt 78 ]; then continue; fi
+        out="$(show_banner; show_menu; echo x)"
+        n="$(printf '%s\n' "$out" | wc -l)"
+        if [ "$(( n + 1 ))" -le "$TERM_ROWS" ]; then break; fi
+    done
+    show_banner
+    show_menu
+}
+
 find_tool() {
     local t="$1" p
     if p="$(command -v "$t" 2>/dev/null)" && [ -n "$p" ]; then
@@ -113,9 +168,12 @@ find_tool() {
     return 1
 }
 
+# ============================================================
+# 1. DISK HEALTH (SMART)
+# ============================================================
 SMARTCTL_BIN=""
-SMART_SUDO=0     # 1 = smartctl dipanggil lewat sudo (Tachys tidak perlu di-restart)
-SMART_ASKED=0    # pertanyaan hanya diajukan sekali per sesi
+SMART_SUDO=0
+SMART_ASKED=0
 
 smart() {
     if [ "$SMART_SUDO" = 1 ]; then
@@ -130,14 +188,13 @@ restart_as_root() {
     local -a env_args=()
     self="$SCRIPT_DIR/$(basename "${TACHYS_SELF:-$0}")"
 
-    # teruskan variabel sesi supaya tes keyboard (SDL) dan audio tetap jalan sebagai root
     for v in DISPLAY XAUTHORITY WAYLAND_DISPLAY XDG_RUNTIME_DIR DBUS_SESSION_BUS_ADDRESS TERM; do
         if [ -n "${!v:-}" ]; then env_args+=("$v=${!v}"); fi
     done
 
     echo "[INFO] Menjalankan ulang Tachys sebagai root ..."
     cleanup
-    exec sudo env -u TACHYS_FIXED -u TACHYS_SELF "${env_args[@]}" bash "$self"
+    exec sudo env -u TACHYS_FIXED -u TACHYS_SELF -u TACHYS_TMPSELF ${env_args[@]+"${env_args[@]}"} bash "$self"
 }
 
 ask_root_for_smart() {
@@ -178,7 +235,7 @@ ask_root_for_smart() {
     case "${choice:-2}" in
         1)
             if sudo -v; then
-                restart_as_root  
+                restart_as_root
             fi
             echo "[ERROR] Gagal mendapatkan akses sudo. Melanjutkan tanpa root."
             ;;
@@ -314,32 +371,46 @@ run_disk_health() {
 
                 if (model == "" && (l ~ /device model/ || l ~ /model number/))  model = after_colon($0)
                 else if (l ~ /overall-health self-assessment/)                  health = after_colon($0)
-                else if (temp == "" && l ~ /temperature_celsius/)               temp = $10        # SATA
-                else if (temp == "" && l ~ /^temperature:/)                     temp = $2         # NVMe
-                else if (l ~ /power_on_hours/)                                  poweron = $10     # SATA
-                else if (l ~ /^power on hours:/)                                poweron = $4      # NVMe
+                else if (temp == "" && l ~ /temperature_celsius/)               temp = $10
+                else if (temp == "" && l ~ /^temperature:/)                     temp = $2
+                else if (l ~ /power_on_hours/)                                  poweron = $10
+                else if (l ~ /^power on hours:/)                                poweron = $4
                 else if (l ~ /reallocated_sector_ct/)                           realloc = $10
                 else if (l ~ /current_pending_sector/)                          pending = $10
                 else if (l ~ /percentage used/)                                 pct_used = after_colon($0)
                 else if (l ~ /available spare:/)                                spare = after_colon($0)
+                else if (l ~ /^critical warning:/)                              crit = $3
+                else if (l ~ /media and data integrity errors:/)                integ = $NF
+                else if (l ~ /wear_leveling_count|media_wearout_indicator|percent_lifetime_remain|ssd_life_left/) {
+                    life_name = $2; life = $4
+                }
             }
 
             END {
                 if (model != "")   printf "Model         : %s\n", model
                 printf "Status SMART  : %s\n", (health != "" ? health : "tidak tersedia dari device ini")
+                if (health != "" && toupper(health) !~ /PASSED|OK/)
+                    print "[WARN] Status SMART bukan PASSED! Segera backup data."
                 if (temp != "")    printf "Suhu          : %s C\n", temp
                 if (poweron != "") printf "Power-On Hours: %s jam\n", poweron
 
-                # SATA/HDD: reallocated & pending sectors
                 if (realloc != "") {
                     printf "Bad Sectors   : %s (realokasi), pending: %s\n", realloc, (pending != "" ? pending : "0")
                     if (realloc != "0" || (pending != "" && pending != "0"))
                         print "[WARN] Terdeteksi bad sector! Pertimbangkan backup data segera."
                 }
 
-                # NVMe: percentage used & available spare
-                if (pct_used != "") printf "Wear Level    : %s terpakai dari usia pakai (NVMe)\n", pct_used
+                if (life != "")     printf "Sisa Umur SSD : %s%% (atribut %s)\n", life, life_name
+
+                if (pct_used != "") {
+                    printf "Wear Level    : %s terpakai dari usia pakai (NVMe)\n", pct_used
+                    pu = pct_used; gsub(/[^0-9]/, "", pu)
+                    if (pu + 0 >= 80) print "[WARN] Wear level NVMe sudah tinggi, pertimbangkan backup/penggantian."
+                }
                 if (spare != "")    printf "Spare Blocks  : %s tersisa (NVMe)\n", spare
+                if (integ != "")    printf "Integrity Err : %s (NVMe)\n", integ
+                if (crit != "" && crit != "0x00")
+                    printf "[WARN] Critical Warning NVMe aktif (%s), segera backup data.\n", crit
             }
         ' <<< "$info"
 
@@ -352,7 +423,9 @@ run_disk_health() {
     return 0
 }
 
-
+# ============================================================
+# 2. WIFI CHECK
+# ============================================================
 show_wifi_driver() {
     local iface="$1"
     local devdir="/sys/class/net/$iface/device"
@@ -449,7 +522,6 @@ run_wifi_check() {
         echo "[WARN] Tidak ditemukan interface WiFi pada sistem ini."
         echo "       (Wajar jika laptop/PC ini tidak memiliki WiFi card atau modul WiFi mati.)"
 
-        # Hardware mungkin ada tapi driver belum terpasang -> tampilkan dari lspci
         local lspci_bin hw_found
         if lspci_bin="$(find_tool lspci)"; then
             hw_found="$("$lspci_bin" -k 2>/dev/null | awk '
@@ -525,6 +597,33 @@ run_wifi_check() {
     fi
 
     echo
+    echo "--- Uji gateway lokal (ping + packet loss) ---"
+    if ! command -v ping >/dev/null 2>&1; then
+        echo "[WARN] Tidak dapat melakukan ping karena utilitas 'ping' tidak tersedia."
+    elif ! command -v ip >/dev/null 2>&1; then
+        echo "[WARN] Utilitas 'ip' tidak tersedia, uji gateway dilewati."
+    else
+        local gw gw_out loss avg q
+        gw="$(ip route show default dev "$wifi_iface" 2>/dev/null \
+                | awk '{for (i = 1; i < NF; i++) if ($i == "via") { print $(i + 1); exit }}')"
+        if [ -z "$gw" ]; then
+            echo "[WARN] Tidak ada default gateway pada $wifi_iface (belum dapat IP / DHCP bermasalah)."
+        else
+            gw_out="$(ping -c 10 -i 0.2 -W 1 "$gw" 2>&1)"
+            loss="$(grep -oE '[0-9]+(\.[0-9]+)?% packet loss' <<< "$gw_out" | grep -oE '^[0-9.]+')"
+            avg="$(awk -F'/' '/^rtt|^round-trip/ {print $5; exit}' <<< "$gw_out")"
+            if [ -z "$loss" ]; then
+                echo "[WARN] Gagal membaca hasil ping ke gateway $gw."
+            else
+                q="$(awk -v l="$loss" 'BEGIN { if (l + 0 == 0) print "Baik"; else if (l + 0 <= 5) print "Ringan"; else print "Buruk" }')"
+                echo "Gateway        : $gw${avg:+ (rata-rata ${avg} ms)}"
+                echo "Packet Loss    : ${loss}% ($q)"
+                echo "[INFO] Sebagian router memblokir ICMP, sehingga ping gateway bisa gagal padahal koneksi normal."
+            fi
+        fi
+    fi
+
+    echo
     echo "--- Uji konektivitas: Google.com ---"
     if command -v ping >/dev/null 2>&1; then
         local ping_out
@@ -542,11 +641,14 @@ run_wifi_check() {
     return 0
 }
 
+# ============================================================
+# 3. KEYBOARD TESTER
+# ============================================================
 search_roots() {
     local d="$SCRIPT_DIR" i
-    for i in 1 2 3 4; do
-        printf '%s\n' "$d"
+    for i in 1 2 3; do
         [ "$d" = "/" ] && break
+        printf '%s\n' "$d"
         d="$(dirname "$d")"
     done
 }
@@ -554,7 +656,7 @@ search_roots() {
 find_keyboard_binary() {
     local r c
     while IFS= read -r r; do
-        c="$(find "$r" -maxdepth 5 -type f -name 'keyboard-tester' \
+        c="$(find "$r" -maxdepth 4 -type f -name 'keyboard-tester' \
                  -not -path '*/.git/*' 2>/dev/null | head -n 1)"
         if [ -n "$c" ]; then
             printf '%s' "$c"
@@ -567,7 +669,7 @@ find_keyboard_binary() {
 find_keyboard_source() {
     local r c
     while IFS= read -r r; do
-        c="$(find "$r" -maxdepth 5 -type f -name 'keyboard-tester.c' \
+        c="$(find "$r" -maxdepth 4 -type f -name 'keyboard-tester.c' \
                  -not -path '*/.git/*' 2>/dev/null | head -n 1)"
         if [ -n "$c" ]; then
             printf '%s' "$c"
@@ -593,14 +695,18 @@ build_keyboard_tester() {
 }
 
 run_keyboard_tester() {
-    local src_app dst_app="$TMP_DIR/keyboard-tester" src_c
+    local src_app dst_app src_c
 
     echo "[INFO] Menyiapkan Keyboard Tester ..."
 
-    if ! mkdir -p "$TMP_DIR"; then
-        echo "[ERROR] Gagal membuat direktori sementara: $TMP_DIR"
-        return 1
+    if [ -z "$TMP_DIR" ] || [ ! -d "$TMP_DIR" ]; then
+        if ! TMP_DIR="$(mktemp -d /tmp/Tachys.XXXXXX 2>/dev/null)"; then
+            TMP_DIR=""
+            echo "[ERROR] Gagal membuat direktori sementara di /tmp"
+            return 1
+        fi
     fi
+    dst_app="$TMP_DIR/keyboard-tester"
 
     if src_app="$(find_keyboard_binary)"; then
         echo "[INFO] Ditemukan: $src_app"
@@ -644,31 +750,48 @@ run_keyboard_tester() {
     return 0
 }
 
+# ============================================================
+# 4. AUDIO OUTPUT
+# ============================================================
 run_audio_output_test() {
     echo "[INFO] Menjalankan tes output audio ..."
     echo
 
-    if command -v speaker-test >/dev/null 2>&1; then
-        echo "[INFO] Memutar test tone per channel (Kiri/Kanan) selama beberapa detik ..."
-        echo "[INFO] Tekan Ctrl+C jika ingin berhenti lebih awal."
-        speaker-test -c 2 -t wav -l 1
-        return 0
+    if ! command -v speaker-test >/dev/null 2>&1; then
+        echo "[ERROR] Tool 'speaker-test' (paket alsa-utils) tidak ditemukan."
+        echo
+        echo "Silakan install terlebih dahulu:"
+        echo "  Ubuntu/Debian : sudo apt install alsa-utils"
+        echo "  Fedora        : sudo dnf install alsa-utils"
+        echo "  Arch          : sudo pacman -S alsa-utils"
+        return 1
     fi
 
-    if command -v aplay >/dev/null 2>&1 && command -v speaker-test >/dev/null 2>&1; then
-        : 
+    echo "[INFO] Memutar test tone per channel (Kiri/Kanan) selama beberapa detik ..."
+    echo "[INFO] Tekan Ctrl+C jika ingin berhenti lebih awal."
+
+    local rc
+    trap ':' INT
+    speaker-test -c 2 -t wav -l 1
+    rc=$?
+    trap - INT
+
+    if [ "$rc" -ne 0 ] && [ "$rc" -ne 130 ]; then
+        echo
+        echo "[ERROR] speaker-test gagal (kode $rc)."
+        echo "        Kemungkinan tidak ada output audio aktif atau driver/sound server bermasalah."
+        return 1
     fi
 
-    echo "[ERROR] Tool 'speaker-test' (paket alsa-utils) tidak ditemukan."
     echo
-    echo "Silakan install terlebih dahulu:"
-    echo "  Ubuntu/Debian : sudo apt install alsa-utils"
-    echo "  Fedora        : sudo dnf install alsa-utils"
-    echo "  Arch          : sudo pacman -S alsa-utils"
-
-    return 1
+    echo "[INFO] Jika Anda mendengar suara di kiri lalu kanan, output audio berfungsi normal."
+    echo "       Tidak dengar suara? Cek volume/mute, headphone, dan default output device."
+    return 0
 }
 
+# ============================================================
+# 5. BATTERY HEALTH
+# ============================================================
 run_battery_health() {
     echo "[INFO] Memeriksa kesehatan baterai ..."
     echo
@@ -681,7 +804,7 @@ run_battery_health() {
         return 1
     fi
 
-    local bat name status capacity full design cycles health
+    local bat name status capacity full design cycles health rate
 
     for bat in "${bat_dirs[@]}"; do
         name="${bat##*/}"
@@ -702,8 +825,12 @@ run_battery_health() {
 
         if [[ $full =~ ^[0-9]+$ && $design =~ ^[0-9]+$ ]] && [ "$((10#$design))" -gt 0 ]; then
             health=$(( (10#$full * 1000) / (10#$design) ))
-            printf 'Kesehatan     : %d.%d%% (dibanding kapasitas pabrik)\n' \
-                "$((health / 10))" "$((health % 10))"
+            if   [ "$health" -ge 800 ]; then rate="Baik"
+            elif [ "$health" -ge 600 ]; then rate="Cukup, mulai menurun"
+            else                             rate="Buruk, pertimbangkan ganti baterai"
+            fi
+            printf 'Kesehatan     : %d.%d%% (%s)\n' "$((health / 10))" "$((health % 10))" "$rate"
+            printf 'Tingkat keausan: %d.%d%%\n' "$(( (1000 - health) / 10 ))" "$(( (1000 - health) % 10 ))"
         else
             echo "Kesehatan     : tidak tersedia dari sistem ini"
         fi
@@ -723,11 +850,14 @@ run_battery_health() {
     return 0
 }
 
+# ============================================================
+# 6. PROSES BERAT / ANTIVIRUS
+# ============================================================
 run_process_monitor() {
     echo "[INFO] Memeriksa program berat yang berjalan ..."
     echo
 
-    local av_patterns="clamd|clamav|freshclam|avast|avgd|avguard|kaspersky|kav|bitdefender|bdlogin|mcafee|sophos|comodo|eset|nod32|f-secure|rkhunter|chkrootkit|fail2ban"
+    local av_patterns="clamd|clamav|freshclam|avast|avgd|avguard|kaspersky|bitdefender|bdlogin|mcafee|sophos|comodo|eset|nod32|f-secure|rkhunter|chkrootkit|fail2ban"
 
     local -a rc
     ps -eo pid=,ppid=,pcpu=,pmem=,comm= --sort=-pcpu | awk -v me="$$" -v av="$av_patterns" '
@@ -741,7 +871,7 @@ run_process_monitor() {
                 n_top++
                 top[n_top] = sprintf("%-8s %-8s %6s %6s  %s", $1, $2, $3, $4, name)
             }
-            if (tolower(name) ~ av) {
+            if (tolower(name) ~ ("^(" av ")")) {
                 n_av++
                 avl[n_av] = sprintf("%-8s %s", $1, name)
             }
@@ -752,7 +882,7 @@ run_process_monitor() {
         }
 
         END {
-            print "--- 10 proses dengan penggunaan CPU tertinggi ---"
+            print "--- 10 proses dengan penggunaan CPU tertinggi (rata-rata sejak proses dimulai) ---"
             printf "%-8s %-8s %6s %6s  %s\n", "PID", "PPID", "%CPU", "%MEM", "COMMAND"
             for (i = 1; i <= n_top; i++) print top[i]
             print ""
@@ -803,11 +933,23 @@ run_process_monitor() {
         fi
         target_pid=$((10#$target_pid))
 
+        if [ "$target_pid" -le 2 ] || [ "$target_pid" -eq "$$" ] || [ "$target_pid" -eq "$PPID" ]; then
+            echo "[ERROR] PID $target_pid adalah proses sistem/Tachys sendiri, tidak boleh dimatikan."
+            echo
+            continue
+        fi
+
         pname=""
         { read -r pname < "/proc/$target_pid/comm"; } 2>/dev/null
 
         if [ -z "$pname" ]; then
             echo "[ERROR] PID $target_pid tidak ditemukan (mungkin sudah berhenti)."
+            echo
+            continue
+        fi
+
+        if [ ! -s "/proc/$target_pid/cmdline" ]; then
+            echo "[ERROR] PID $target_pid adalah kernel thread atau proses zombie, tidak bisa dimatikan."
             echo
             continue
         fi
@@ -831,58 +973,9 @@ run_process_monitor() {
     return 0
 }
 
-show_menu() {
-    local C_SUB="\033[0;36m"
-    local C_TEAL="\033[0;36m"
-    local C_LINE="\033[1;32m"
-    local C_RST="\033[0m"
-    local LINE="════════════════════════════════════════════════════════════════════════════"
-
-    [ "$TERM_COLS" -lt 77 ] && LINE="${LINE:0:$(( TERM_COLS - 1 ))}"
-
-    [ "$MINI" = 1 ] || echo -e "${C_LINE}${LINE}${C_RST}"
-    echo -e "${C_SUB}        Pilih tool yang ingin dijalankan:${C_RST}"
-    blank
-    if [ "$MENU2" = 1 ]; then
-        printf "${C_TEAL}  %-30s%s${C_RST}\n" "1. Cek Kesehatan HDD/SSD" "5. Cek Kesehatan Baterai"
-        printf "${C_TEAL}  %-30s%s${C_RST}\n" "2. Cek Status WiFi Card"  "6. Cek Program Berat"
-        printf "${C_TEAL}  %-30s%s${C_RST}\n" "3. Tes Keyboard"          "0. Keluar"
-        printf "${C_TEAL}  %-30s%s${C_RST}\n" "4. Tes Audio"             ""
-    else
-        echo -e "${C_TEAL}  1. Cek Kesehatan HDD/SSD${C_RST}"
-        echo -e "${C_TEAL}  2. Cek Status WiFi Card${C_RST}"
-        echo -e "${C_TEAL}  3. Tes Keyboard${C_RST}"
-        echo -e "${C_TEAL}  4. Tes Audio${C_RST}"
-        echo -e "${C_TEAL}  5. Cek Kesehatan Baterai${C_RST}"
-        echo -e "${C_TEAL}  6. Cek Program Berat${C_RST}"
-        echo -e "${C_TEAL}  0. Keluar${C_RST}"
-    fi
-    blank
-    [ "$MINI" = 1 ] || echo -e "${C_LINE}${LINE}${C_RST}"
-    blank
-}
-
-show_screen() {
-    get_term_size
-    local mode out n
-    for mode in roomy tight twocol noart mini; do
-        BLANKS=1; ART=1; MENU2=0; MINI=0
-        case "$mode" in
-            tight)  BLANKS=0 ;;
-            twocol) BLANKS=0; MENU2=1 ;;
-            noart)  BLANKS=0; ART=0 ;;
-            mini)   BLANKS=0; ART=0; MINI=1 ;;
-        esac
-        [ "$mode" = mini ] && break
-        if [ "$ART" = 1 ] && [ "$TERM_COLS" -lt 78 ]; then continue; fi
-        out="$(show_banner; show_menu; echo x)"
-        n="$(printf '%s\n' "$out" | wc -l)"
-        if [ "$(( n + 1 ))" -le "$TERM_ROWS" ]; then break; fi
-    done
-    show_banner
-    show_menu
-}
-
+# ============================================================
+# MAIN LOOP
+# ============================================================
 maximize_window
 
 while true; do
