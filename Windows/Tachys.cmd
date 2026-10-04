@@ -11,11 +11,13 @@ set "DRIVE_ROOT=%~d0\"
 if /i "%~1"=="__KEEP_OPEN__" goto :setup_paths
 if "%~1"=="" (
     echo Menyiapkan Tachys, mohon tunggu sebentar...
-    start "" "%ComSpec%" /k "%~f0" __KEEP_OPEN__
+    start "" /max "%ComSpec%" /k "%~f0" __KEEP_OPEN__
     exit /b 0
 )
 
 :setup_paths
+
+call :maximize_window
 
 :: (KeyboardTestUtility dicari saat menu [3] dipilih, bukan saat startup)
 
@@ -24,8 +26,37 @@ if not exist "%TMP_DIR%" mkdir "%TMP_DIR%" >nul 2>&1
 
 goto :main
 
+:maximize_window
+:: Maksimalkan jendela terminal ini (conhost maupun Windows Terminal).
+:: Dicari lewat judul jendela "TACHYS", jadi tidak akan menyentuh jendela lain.
+powershell -NoProfile -Command "$c = 'using System; using System.Runtime.InteropServices; public class TW { [DllImport(' + [char]34 + 'user32.dll' + [char]34 + ')] public static extern bool ShowWindow(IntPtr h, int n); }'; Add-Type $c; Get-Process | Where-Object { $_.MainWindowHandle -ne 0 -and $_.MainWindowTitle -like '*TACHYS*' } | ForEach-Object { [TW]::ShowWindow($_.MainWindowHandle, 3) | Out-Null }; Start-Sleep -Milliseconds 400" >nul 2>&1
+goto :eof
+
+:get_term_size
+:: Ambil ukuran jendela terminal (baris x kolom) yang sedang terlihat.
+set "TERM_H="
+set "TERM_W="
+for /f "usebackq tokens=1,2" %%a in (`powershell -NoProfile -Command "$s = $Host.UI.RawUI.WindowSize; Write-Output ($s.Height.ToString() + ' ' + $s.Width.ToString())" 2^>nul`) do (
+    set "TERM_H=%%a"
+    set "TERM_W=%%b"
+)
+if not defined TERM_H set "TERM_H=30"
+if not defined TERM_W set "TERM_W=100"
+goto :eof
+
 :show_banner
 cls
+call :get_term_size
+:: Pilih tampilan yang muat satu layar penuh (tanpa scroll / terpotong):
+::   full    = banner ASCII besar  (butuh min 34 baris x 64 kolom)
+::   compact = tanpa ASCII art      (butuh min 17 baris x 66 kolom)
+::   mini    = paling ringkas       (untuk jendela sangat kecil)
+set "TIER=compact"
+if %TERM_H% GEQ 34 if %TERM_W% GEQ 64 set "TIER=full"
+if %TERM_H% LSS 17 set "TIER=mini"
+goto :banner_%TIER%
+
+:banner_full
 echo =====================================================
 echo   ████ █   █ █   █   ████   ████ ████  █████     █   
 echo  █     ██ ██ █  █    █   █ █     █   █   █      ██   
@@ -39,34 +70,59 @@ echo █ █ █ █████ ████    █   █████ ███
 echo █   █ █   █ █  █    █   █   █ █     █   █ █  █  █   █
 echo █   █ █   █ █   █   █   █   █ █      ███  █   █ █   █
 echo =====================================================
-echo.
+echo    TACHYS - Portable Diagnostic Toolkit (Windows)
 echo -----------------------------------------------------
-echo    TACHYS - Portable Diagnostic Toolkit (Windows)            
-echo -----------------------------------------------------
-echo.
 echo Author      : Ali Rahman
 echo Student ID  : 24020115 / 3085417291
 echo Grade       : Grade 12 - Computer and Network Engineering
 echo Repository  : https://github.com/Ali-Rahman-BJB/TACHYS
-echo.
+goto :eof
+
+:banner_compact
+echo ==============================================================
+echo   TACHYS - Portable Diagnostic Toolkit (Windows)
+echo --------------------------------------------------------------
+echo   Author : Ali Rahman  ^|  Student ID : 24020115 / 3085417291
+echo   Grade  : Grade 12 - Computer and Network Engineering
+echo   Repo   : https://github.com/Ali-Rahman-BJB/TACHYS
+echo ==============================================================
+goto :eof
+
+:banner_mini
+echo  TACHYS - Portable Diagnostic Toolkit (Windows) ^| Ali Rahman
 goto :eof
 
 :show_menu
+goto :menu_%TIER%
+
+:menu_full
 echo -----------------------------------------------------
 echo         Pilih tool yang ingin dijalankan:
-echo.
 echo  [s] Buka Windows Security Virus ^& threat protection Settings
 echo   1. Cek Kesehatan HDD/SSD
 echo   2. Cek Status WiFi Card ^& Adapter Detection
 echo   3. Tes Keyboard Input
 echo   4. Tes Audio Output
 echo   5. Cek Kesehatan Baterai
-echo   6. Cek Program Berat  
+echo   6. Cek Program Berat
 echo   7. Nonaktifkan Fast Startup Control Panel
 echo   0. Keluar
-echo.
 echo -----------------------------------------------------
-echo.
+goto :eof
+
+:menu_compact
+echo   Pilih tool yang ingin dijalankan:
+echo   [s] Buka Windows Security (Virus ^& threat protection)
+echo   1. Cek Kesehatan HDD/SSD         5. Cek Kesehatan Baterai
+echo   2. Cek WiFi ^& Adapter            6. Cek Program Berat
+echo   3. Tes Keyboard Input            7. Nonaktifkan Fast Startup
+echo   4. Tes Audio Output              0. Keluar
+echo ==============================================================
+goto :eof
+
+:menu_mini
+echo  [s] Win Security  1. HDD/SSD  2. WiFi  3. Keyboard  4. Audio
+echo  5. Baterai  6. Program Berat  7. Fast Startup  0. Keluar
 goto :eof
 
 :: ============================================================

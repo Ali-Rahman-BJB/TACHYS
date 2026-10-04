@@ -1,7 +1,10 @@
+#!/usr/bin/env bash
+# --- Auto-perbaiki line ending CRLF (file yang disalin lewat Windows) ---
+if [ -z "${TACHYS_FIXED:-}" ] && grep -q $'\r' "$0" 2>/dev/null; then export TACHYS_FIXED=1; if sed -i 's/\r$//' "$0" 2>/dev/null; then exec bash "$0" "$@"; else TACHYS_SELF="$0"; export TACHYS_SELF; _t="$(mktemp)"; tr -d '\r' < "$0" > "$_t"; exec bash "$_t" "$@"; fi; fi # fix-crlf
 set -u
 set -o pipefail
 
-SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+SCRIPT_DIR="$(cd "$(dirname "${TACHYS_SELF:-$0}")" && pwd)"
 
 FLASHDISK_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 
@@ -21,6 +24,16 @@ read_sys() {
     printf -v "$2" '%s' "$_v"
 }
 
+# Mode tampilan (diatur oleh show_screen). Nilai bawaan = tampilan asli.
+BLANKS=1     # 1 = pakai baris kosong antar bagian (asli), 0 = rapatkan
+ART=1        # 1 = tampilkan banner ASCII
+MENU2=0      # 1 = menu 2 kolom
+MINI=0       # 1 = tampilan paling ringkas
+TERM_ROWS=24
+TERM_COLS=80
+
+blank() { [ "$BLANKS" = 1 ] && echo; return 0; }
+
 show_banner() {
     clear
 
@@ -31,8 +44,11 @@ show_banner() {
 
     local LINE="════════════════════════════════════════════════════════════════════════════"
 
-    echo -e "${C_LINE}${LINE}${C_RST}"
-    echo -e "${C_ART}"
+    [ "$TERM_COLS" -lt 77 ] && LINE="${LINE:0:$(( TERM_COLS - 1 ))}"
+
+    [ "$MINI" = 1 ] || echo -e "${C_LINE}${LINE}${C_RST}"
+    if [ "$ART" = 1 ]; then
+    printf '%b' "${C_ART}"; blank
     cat << 'BANNER'
 ░██████╗███╗░░░███╗██╗░░██╗  ██████╗░░██████╗░██████╗░██╗  ░░███╗░░
 ██╔════╝████╗░████║██║░██╔╝  ██╔══██╗██╔════╝░██╔══██╗██║  ░████║░░
@@ -47,23 +63,158 @@ show_banner() {
 ██║░╚═╝░██║██║░░██║██║░░██║░░░██║░░░██║░░██║██║░░░░░╚██████╔╝██║░░██║██║░░██║
 ╚═╝░░░░░╚═╝╚═╝░░╚═╝╚═╝░░╚═╝░░░╚═╝░░░╚═╝░░╚═╝╚═╝░░░░░░╚═════╝░╚═╝░░╚═╝╚═╝░░╚═╝
 BANNER
-    echo -e "${C_RST}"
+    printf '%b' "${C_RST}"; blank
     echo -e "${C_LINE}${LINE}${C_RST}"
+    fi
     echo -e "${C_SUB}        TACHYS - Portable Diagnostic Toolkit (Linux)${C_RST}"
+    if [ "$MINI" != 1 ]; then
     echo -e "${C_LINE}${LINE}${C_RST}"
-    echo
+    blank
     echo -e "${C_SUB}Author      ${C_RST}: Ali Rahman"
     echo -e "${C_SUB}Student ID  ${C_RST}: 24020115 / 3085417291"
     echo -e "${C_SUB}Grade       ${C_RST}: Grade 12 - Computer and Network Engineering"
     echo -e "${C_SUB}Repository  ${C_RST}: https://github.com/Ali-Rahman-BJB/TACHYS"
+    [ "$ART" = 1 ] || echo -e "${C_SUB}(Perbesar jendela terminal agar banner ASCII tampil)${C_RST}"
+    blank
+    fi
+}
+
+# Maksimalkan jendela terminal (best effort, aman kalau tidak didukung).
+maximize_window() {
+    [ -t 1 ] || return 0
+    printf '\033[9;1t'
+    if [ -n "${DISPLAY:-}" ]; then
+        if command -v wmctrl >/dev/null 2>&1; then
+            wmctrl -r :ACTIVE: -b add,maximized_vert,maximized_horz >/dev/null 2>&1
+        elif command -v xdotool >/dev/null 2>&1; then
+            xdotool getactivewindow windowstate --add MAXIMIZED_VERT --add MAXIMIZED_HORZ >/dev/null 2>&1
+        fi
+    fi
+    sleep 0.3
+}
+
+get_term_size() {
+    local sz
+    sz="$(stty size 2>/dev/null)" || sz=""
+    if [ -n "$sz" ]; then
+        TERM_ROWS="${sz% *}"; TERM_COLS="${sz#* }"
+    elif command -v tput >/dev/null 2>&1; then
+        TERM_ROWS="$(tput lines 2>/dev/null)"; TERM_COLS="$(tput cols 2>/dev/null)"
+    fi
+    case "$TERM_ROWS" in ''|*[!0-9]*|0) TERM_ROWS=24 ;; esac
+    case "$TERM_COLS" in ''|*[!0-9]*|0) TERM_COLS=80 ;; esac
+}
+
+# Cari tool yang bisa saja ada di /usr/sbin (tidak masuk PATH user biasa di Debian)
+find_tool() {
+    local t="$1" p
+    if p="$(command -v "$t" 2>/dev/null)" && [ -n "$p" ]; then
+        printf '%s' "$p"; return 0
+    fi
+    for p in /usr/sbin /sbin /usr/local/sbin; do
+        if [ -x "$p/$t" ]; then printf '%s' "$p/$t"; return 0; fi
+    done
+    return 1
+}
+
+# ---------- Akses root untuk smartctl ----------
+SMARTCTL_BIN=""
+SMART_SUDO=0     # 1 = smartctl dipanggil lewat sudo (Tachys tidak perlu di-restart)
+SMART_ASKED=0    # pertanyaan hanya diajukan sekali per sesi
+
+# Panggil smartctl, otomatis lewat sudo jika pengguna memilih opsi itu
+smart() {
+    if [ "$SMART_SUDO" = 1 ]; then
+        sudo "$SMARTCTL_BIN" "$@"
+    else
+        "$SMARTCTL_BIN" "$@"
+    fi
+}
+
+# Jalankan ulang seluruh Tachys sebagai root
+restart_as_root() {
+    local self v
+    local -a env_args=()
+    self="$SCRIPT_DIR/$(basename "${TACHYS_SELF:-$0}")"
+
+    # teruskan variabel sesi supaya tes keyboard (SDL) dan audio tetap jalan sebagai root
+    for v in DISPLAY XAUTHORITY WAYLAND_DISPLAY XDG_RUNTIME_DIR DBUS_SESSION_BUS_ADDRESS TERM; do
+        if [ -n "${!v:-}" ]; then env_args+=("$v=${!v}"); fi
+    done
+
+    echo "[INFO] Menjalankan ulang Tachys sebagai root ..."
+    cleanup
+    exec sudo env -u TACHYS_FIXED -u TACHYS_SELF "${env_args[@]}" bash "$self"
+}
+
+# Tanyakan cara mendapatkan akses root untuk smartctl (sekali per sesi)
+ask_root_for_smart() {
+    [ "$EUID" -eq 0 ] && return 0
+
+    if [ "$SMART_SUDO" = 1 ]; then
+        # sesi sudo bisa kedaluwarsa; segarkan agar tidak minta password di tengah scan
+        sudo -v 2>/dev/null || SMART_SUDO=0
+        [ "$SMART_SUDO" = 1 ] && return 0
+    fi
+
+    if [ "$SMART_ASKED" = 1 ]; then
+        echo "[WARN] Berjalan tanpa root, data SMART mungkin tidak lengkap."
+        echo
+        return 0
+    fi
+    SMART_ASKED=1
+
+    echo "[WARN] smartctl butuh akses root untuk membaca data SMART."
+    echo "       Tanpa root, data bisa tidak lengkap atau disk tidak terdeteksi."
     echo
+    echo "Pilih cara melanjutkan:"
+    echo "  1. Jalankan ulang seluruh Tachys dengan sudo"
+    echo "  2. Tidak usah ulang Tachys, pakai sudo hanya untuk cek disk ini"
+    echo "  3. Lanjut tanpa root"
+    echo
+
+    if ! command -v sudo >/dev/null 2>&1; then
+        echo "[ERROR] 'sudo' tidak ditemukan. Melanjutkan tanpa root."
+        echo "        (Alternatif: jalankan 'su -c \"bash Tachys.sh\"' lalu buka menu ini lagi.)"
+        echo
+        return 0
+    fi
+
+    local choice
+    read -r -p "Pilihan [1-3, Enter = 2]: " choice
+    echo
+
+    case "${choice:-2}" in
+        1)
+            if sudo -v; then
+                restart_as_root   # tidak kembali jika berhasil
+            fi
+            echo "[ERROR] Gagal mendapatkan akses sudo. Melanjutkan tanpa root."
+            ;;
+        2)
+            if sudo -v; then
+                SMART_SUDO=1
+                echo "[INFO] OK, sudo dipakai hanya untuk smartctl."
+            else
+                echo "[ERROR] Gagal mendapatkan akses sudo. Melanjutkan tanpa root."
+            fi
+            ;;
+        3)
+            echo "[INFO] Melanjutkan tanpa root."
+            ;;
+        *)
+            echo "[WARN] Pilihan tidak dikenali, melanjutkan tanpa root."
+            ;;
+    esac
+    echo
+    return 0
 }
 
 run_disk_health() {
     echo "[INFO] Memeriksa kesehatan HDD/SSD (SMART) ..."
     echo
 
-    if ! command -v smartctl >/dev/null 2>&1; then
+    if ! SMARTCTL_BIN="$(find_tool smartctl)"; then
         echo "[ERROR] Tool 'smartctl' tidak ditemukan di sistem ini."
         echo
         echo "Silakan install terlebih dahulu:"
@@ -75,41 +226,94 @@ run_disk_health() {
         return 1
     fi
 
-    if [ "$EUID" -ne 0 ]; then
-        echo "[WARN] Tidak dijalankan sebagai root. Sebagian data SMART mungkin tidak lengkap"
-        echo "       atau device tidak terdeteksi sama sekali. Disarankan jalankan Tachys dengan sudo."
-        echo
-    fi
+    ask_root_for_smart
 
     local scan_result
-    scan_result="$(smartctl --scan 2>/dev/null | awk '{print $1}')"
+    scan_result="$(smart --scan 2>/dev/null | awk '{print $1}')"
 
     if [ -z "$scan_result" ]; then
-        echo "[WARN] Tidak ditemukan device disk yang bisa diperiksa smartctl."
-        echo "       Mencoba fallback ke daftar block device via lsblk ..."
+        echo "[INFO] smartctl --scan tidak menemukan device (normal untuk eMMC / USB)."
+        echo "       Memakai daftar disk dari lsblk ..."
+        echo
         if command -v lsblk >/dev/null 2>&1; then
             scan_result="$(lsblk -dno NAME,TYPE 2>/dev/null \
-                | awk '$2=="disk" && $1 !~ /^(loop|ram|zram)/ {print "/dev/"$1}')"
+                | awk '$2=="disk" {print "/dev/"$1}')"
         fi
     fi
+
+    # buang device virtual dan partisi khusus eMMC (boot0/boot1/rpmb)
+    scan_result="$(printf '%s\n' "$scan_result" \
+        | grep -Ev '/(loop|ram|zram|sr)[0-9]*$|/mmcblk[0-9]+(boot[0-9]+|rpmb)$')"
 
     if [ -z "$scan_result" ]; then
         echo "[ERROR] Tidak ada device disk yang terdeteksi sama sekali."
         return 1
     fi
 
-    local dev info
+    local dev name info alt model size tran rota kind
+    local pat='overall-health|SMART/Health Information|Percentage Used|Reallocated_Sector'
+
     for dev in $scan_result; do
+        name="${dev##*/}"
+        model=""; size=""; tran=""; rota=""
+        if command -v lsblk >/dev/null 2>&1; then
+            model="$(lsblk -dno MODEL "$dev" 2>/dev/null | sed 's/[[:space:]]*$//')"
+            size="$(lsblk -dno SIZE "$dev" 2>/dev/null | tr -d ' ')"
+            tran="$(lsblk -dno TRAN "$dev" 2>/dev/null | tr -d ' ')"
+            rota="$(lsblk -dno ROTA "$dev" 2>/dev/null | tr -d ' ')"
+        fi
+        case "$name" in
+            mmcblk*) kind="eMMC / SD card" ;;
+            nvme*)   kind="NVMe SSD" ;;
+            *)
+                if [ "$tran" = "usb" ]; then kind="USB (flashdisk / disk eksternal)"
+                elif [ "$rota" = "1" ]; then kind="HDD"
+                else kind="SSD"
+                fi
+                ;;
+        esac
+
         echo "════════════════════════════════════════════════════════════"
         echo "Device: $dev"
         echo "════════════════════════════════════════════════════════════"
 
-        info="$(smartctl -i -H -A "$dev" 2>/dev/null)"
+        info="$(smart -i -H -A "$dev" 2>/dev/null)"
+        if ! grep -qiE "$pat" <<< "$info"; then
+            # bridge USB-SATA sering butuh mode -d sat
+            alt="$(smart -d sat -i -H -A "$dev" 2>/dev/null)"
+            if grep -qiE "$pat" <<< "$alt"; then
+                info="$alt"
+            fi
+        fi
 
-        if [ -z "$info" ]; then
-            echo "[WARN] Tidak bisa membaca data SMART dari $dev."
-            echo "       Kemungkinan butuh akses root (jalankan dengan sudo) atau"
-            echo "       device tidak mendukung SMART (mis. USB flashdisk / SD card)."
+        if ! grep -qiE "$pat" <<< "$info"; then
+            [ -n "$model" ] && echo "Model         : $model"
+            [ -n "$size" ]  && echo "Ukuran        : $size"
+            echo "Tipe          : $kind"
+            echo "Status SMART  : tidak didukung oleh device ini"
+
+            # eMMC punya indikator usia pakai sendiri lewat sysfs
+            local lt="/sys/block/$name/device/life_time" eol="/sys/block/$name/device/pre_eol_info"
+            if [ -r "$lt" ] || [ -r "$eol" ]; then
+                local a b v e
+                if read -r a b < "$lt" 2>/dev/null && [ -n "${a:-}" ]; then
+                    v=$(( 16#${a#0x} ))
+                    if   [ "$v" -eq 0 ];  then echo "Usia Pakai    : tidak dilaporkan oleh eMMC"
+                    elif [ "$v" -le 10 ]; then echo "Usia Pakai    : sekitar $(( (v-1)*10 ))-$(( v*10 ))% terpakai (eMMC)"
+                    else                       echo "Usia Pakai    : melebihi estimasi usia pakai! (eMMC)"
+                    fi
+                fi
+                if read -r e < "$eol" 2>/dev/null && [ -n "${e:-}" ]; then
+                    case "$e" in
+                        0x01) echo "Cadangan Blok : normal (eMMC)" ;;
+                        0x02) echo "Cadangan Blok : [WARN] 80% cadangan blok sudah terpakai (eMMC)" ;;
+                        0x03) echo "Cadangan Blok : [WARN] cadangan blok hampir habis, segera backup (eMMC)" ;;
+                        *)    echo "Cadangan Blok : tidak dilaporkan ($e)" ;;
+                    esac
+                fi
+            else
+                echo "              (Wajar untuk flashdisk USB, SD card, dan eMMC: tidak punya fitur SMART.)"
+            fi
             echo
             continue
         fi
@@ -161,6 +365,79 @@ run_disk_health() {
 }
 
 
+# Tampilkan driver, modul, bus, dan nama perangkat WiFi card
+show_wifi_driver() {
+    local iface="$1"
+    local devdir="/sys/class/net/$iface/device"
+    local driver="" module="" bus="" hw="" ver="" fw="" slot="" vid="" pid="" bin
+
+    if [ -L "$devdir/driver" ]; then
+        driver="$(basename "$(readlink -f "$devdir/driver")")"
+    elif [ -r "$devdir/uevent" ]; then
+        driver="$(sed -n 's/^DRIVER=//p' "$devdir/uevent" 2>/dev/null | head -n 1)"
+    fi
+
+    if [ -L "$devdir/driver/module" ]; then
+        module="$(basename "$(readlink -f "$devdir/driver/module")")"
+    fi
+
+    if [ -L "$devdir/subsystem" ]; then
+        bus="$(basename "$(readlink -f "$devdir/subsystem")")"
+    fi
+
+    # Nama chipset / perangkat
+    case "$bus" in
+        pci)
+            slot="$(basename "$(readlink -f "$devdir")")"
+            if bin="$(find_tool lspci)"; then
+                hw="$("$bin" -s "$slot" 2>/dev/null | sed 's/^[^ ]* [^:]*: //')"
+            fi
+            if [ -z "$hw" ]; then
+                read_sys "$devdir/vendor" vid; read_sys "$devdir/device" pid
+                [ -n "$vid" ] && hw="ID ${vid#0x}:${pid#0x} (install 'pciutils' untuk nama lengkap)"
+            fi
+            ;;
+        usb)
+            read_sys "$devdir/../idVendor" vid; read_sys "$devdir/../idProduct" pid
+            if [ -n "$vid" ] && bin="$(find_tool lsusb)"; then
+                hw="$("$bin" -d "$vid:$pid" 2>/dev/null | sed 's/^Bus .* ID [0-9a-fA-F:]* //')"
+            fi
+            [ -z "$hw" ] && [ -n "$vid" ] && hw="ID $vid:$pid"
+            ;;
+        *)
+            read_sys "$devdir/vendor" vid; read_sys "$devdir/device" pid
+            [ -n "$vid" ] && hw="ID ${vid#0x}:${pid#0x}"
+            ;;
+    esac
+
+    # Versi driver & firmware (tidak butuh root)
+    if bin="$(find_tool ethtool)"; then
+        local et
+        et="$("$bin" -i "$iface" 2>/dev/null)"
+        if [ -n "$et" ]; then
+            [ -z "$driver" ] && driver="$(awk -F': ' '$1=="driver"{print $2; exit}' <<< "$et")"
+            ver="$(awk -F': ' '$1=="version"{print $2; exit}' <<< "$et")"
+            fw="$(awk -F': ' '$1=="firmware-version"{print $2; exit}' <<< "$et")"
+            [ "$fw" = "N/A" ] && fw=""
+        fi
+    fi
+
+    if [ -n "$driver" ]; then
+        printf '%-15s: %s\n' "Driver" "$driver"
+        if [ -n "$module" ] && [ "$module" != "$driver" ]; then
+            printf '%-15s: %s\n' "Modul Kernel" "$module"
+        fi
+    else
+        printf '%-15s: %s\n' "Driver" "tidak terdeteksi"
+        echo "[WARN] Tidak ada driver yang terikat ke WiFi card ini (belum terpasang / gagal dimuat)."
+    fi
+    [ -n "$bus" ] && printf '%-15s: %s\n' "Bus" "${bus^^}"
+    [ -n "$hw" ]  && printf '%-15s: %s\n' "Perangkat" "$hw"
+    [ -n "$ver" ] && printf '%-15s: %s\n' "Versi Driver" "$ver"
+    [ -n "$fw" ]  && printf '%-15s: %s\n' "Firmware" "$fw"
+    return 0
+}
+
 run_wifi_check() {
     echo "[INFO] Memeriksa status WiFi Card ..."
     echo
@@ -186,10 +463,25 @@ run_wifi_check() {
     if [ -z "$wifi_iface" ]; then
         echo "[WARN] Tidak ditemukan interface WiFi pada sistem ini."
         echo "       (Wajar jika laptop/PC ini tidak memiliki WiFi card atau modul WiFi mati.)"
+
+        # Hardware mungkin ada tapi driver belum terpasang -> tampilkan dari lspci
+        local lspci_bin hw_found
+        if lspci_bin="$(find_tool lspci)"; then
+            hw_found="$("$lspci_bin" -k 2>/dev/null | awk '
+                /^[0-9a-fA-F]/ { show = ($0 ~ /Network controller|Wireless|802\.11/) }
+                show { print }')"
+            if [ -n "$hw_found" ]; then
+                echo
+                echo "[INFO] Perangkat jaringan nirkabel terdeteksi di hardware (PCI):"
+                echo "$hw_found" | sed 's/^/       /'
+                echo "       Jika tidak ada baris 'Kernel driver in use', driver belum terpasang."
+            fi
+        fi
         return 1
     fi
 
     echo "Interface WiFi : $wifi_iface"
+    show_wifi_driver "$wifi_iface"
 
     local state=""
     if read_sys "/sys/class/net/$wifi_iface/operstate" state; then
@@ -566,24 +858,59 @@ show_menu() {
     local C_RST="\033[0m"
     local LINE="════════════════════════════════════════════════════════════════════════════"
 
-    echo -e "${C_LINE}${LINE}${C_RST}"
+    [ "$TERM_COLS" -lt 77 ] && LINE="${LINE:0:$(( TERM_COLS - 1 ))}"
+
+    [ "$MINI" = 1 ] || echo -e "${C_LINE}${LINE}${C_RST}"
     echo -e "${C_SUB}        Pilih tool yang ingin dijalankan:${C_RST}"
-    echo
-    echo -e "${C_TEAL}  1. Cek Kesehatan HDD/SSD${C_RST}"
-    echo -e "${C_TEAL}  2. Cek Status WiFi Card${C_RST}"
-    echo -e "${C_TEAL}  3. Tes Keyboard${C_RST}"
-    echo -e "${C_TEAL}  4. Tes Audio${C_RST}"
-    echo -e "${C_TEAL}  5. Cek Kesehatan Baterai${C_RST}"
-    echo -e "${C_TEAL}  6. Cek Program Berat${C_RST}"
-    echo -e "${C_TEAL}  0. Keluar${C_RST}"
-    echo
-    echo -e "${C_LINE}${LINE}${C_RST}"
-    echo
+    blank
+    if [ "$MENU2" = 1 ]; then
+        printf "${C_TEAL}  %-30s%s${C_RST}\n" "1. Cek Kesehatan HDD/SSD" "5. Cek Kesehatan Baterai"
+        printf "${C_TEAL}  %-30s%s${C_RST}\n" "2. Cek Status WiFi Card"  "6. Cek Program Berat"
+        printf "${C_TEAL}  %-30s%s${C_RST}\n" "3. Tes Keyboard"          "0. Keluar"
+        printf "${C_TEAL}  %-30s%s${C_RST}\n" "4. Tes Audio"             ""
+    else
+        echo -e "${C_TEAL}  1. Cek Kesehatan HDD/SSD${C_RST}"
+        echo -e "${C_TEAL}  2. Cek Status WiFi Card${C_RST}"
+        echo -e "${C_TEAL}  3. Tes Keyboard${C_RST}"
+        echo -e "${C_TEAL}  4. Tes Audio${C_RST}"
+        echo -e "${C_TEAL}  5. Cek Kesehatan Baterai${C_RST}"
+        echo -e "${C_TEAL}  6. Cek Program Berat${C_RST}"
+        echo -e "${C_TEAL}  0. Keluar${C_RST}"
+    fi
+    blank
+    [ "$MINI" = 1 ] || echo -e "${C_LINE}${LINE}${C_RST}"
+    blank
 }
 
-while true; do
+# Pilih tampilan terbesar yang muat penuh di jendela (tanpa scroll / terpotong).
+# Urutan: asli -> rapat -> menu 2 kolom -> tanpa ASCII -> ringkas.
+show_screen() {
+    get_term_size
+    local mode out n
+    for mode in roomy tight twocol noart mini; do
+        BLANKS=1; ART=1; MENU2=0; MINI=0
+        case "$mode" in
+            tight)  BLANKS=0 ;;
+            twocol) BLANKS=0; MENU2=1 ;;
+            noart)  BLANKS=0; ART=0 ;;
+            mini)   BLANKS=0; ART=0; MINI=1 ;;
+        esac
+        [ "$mode" = mini ] && break
+        # banner ASCII lebar 77 kolom, jadi butuh minimal 78 kolom
+        if [ "$ART" = 1 ] && [ "$TERM_COLS" -lt 78 ]; then continue; fi
+        out="$(show_banner; show_menu; echo x)"
+        n="$(printf '%s\n' "$out" | wc -l)"
+        # n = baris terpakai termasuk baris prompt; sisakan 1 baris cadangan
+        if [ "$(( n + 1 ))" -le "$TERM_ROWS" ]; then break; fi
+    done
     show_banner
     show_menu
+}
+
+maximize_window
+
+while true; do
+    show_screen
 
     read -r -p "Masukkan pilihan [0-6]: " pilihan || { echo; exit 0; }
     echo
