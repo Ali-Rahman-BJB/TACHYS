@@ -57,7 +57,7 @@ echo         Pilih tool yang ingin dijalankan:
 echo.
 echo  [s] Buka Windows Security Virus ^& threat protection Settings
 echo   1. Cek Kesehatan HDD/SSD
-echo   2. Cek Status WiFi Card
+echo   2. Cek Status WiFi Card ^& Adapter Detection
 echo   3. Tes Keyboard Input
 echo   4. Tes Audio Output
 echo   5. Cek Kesehatan Baterai
@@ -93,6 +93,9 @@ exit /b 0
 :run_wifi_check
 echo [INFO] Memeriksa status WiFi Card ...
 echo.
+call :wifi_adapter_detect
+echo [INFO] Detail koneksi WiFi ^(netsh^):
+echo.
 
 if not exist "%TMP_DIR%" mkdir "%TMP_DIR%" >nul 2>&1
 netsh wlan show interfaces > "%TMP_DIR%\wifi.txt" 2>nul
@@ -118,6 +121,51 @@ if errorlevel 1 (
 echo.
 echo [INFO] Pemeriksaan WiFi selesai.
 echo        Jika "State" menunjukkan "disconnected", coba sambungkan ke jaringan terlebih dahulu.
+exit /b 0
+
+:: ============================================================
+:: 2b. ADAPTER DETECTION (dipanggil dari menu WiFi)
+::     PnP status, driver, link speed, signal, gateway ping, packet loss
+:: ============================================================
+:wifi_adapter_detect
+echo [INFO] Adapter Detection ^(PnP, driver, link speed, signal, gateway ping, packet loss^) ...
+echo.
+
+powershell -NoProfile -Command ^
+    "$ErrorActionPreference = 'SilentlyContinue';" ^
+    "$ads = @(Get-NetAdapter -Physical);" ^
+    "if ($ads.Count -eq 0) { Write-Host '[WARN] Tidak ada network adapter fisik yang terdeteksi.'; Write-Host '       (Adapter mungkin nonaktif di BIOS/Device Manager atau driver belum terpasang.)'; exit 0 };" ^
+    "$sig = @{}; $cur = '';" ^
+    "foreach ($l in @(netsh wlan show interfaces)) { if ($l -match '^\s*(Name|Nama)\s*:\s*(.+?)\s*$') { $cur = $Matches[2] } elseif ($l -match '^\s*(Signal|Sinyal)\s*:\s*(\d+)') { $sig[$cur] = [int]$Matches[2] } };" ^
+    "foreach ($a in $ads) {" ^
+    "  Write-Host '====================================================';" ^
+    "  Write-Host ('Adapter        : ' + $a.Name + ' - ' + $a.InterfaceDescription);" ^
+    "  $pnp = Get-PnpDevice -InstanceId $a.PnPDeviceID;" ^
+    "  if ($pnp) { $ps = [string]$pnp.Status; $ec = [int]$pnp.ConfigManagerErrorCode; if ($ps -eq 'OK' -and $ec -eq 0) { $pt = 'OK (berfungsi normal)' } elseif ($ec -gt 0) { $pt = $ps + ' (kode error Device Manager: ' + $ec + ')' } else { $pt = $ps } } else { $pt = 'Tidak diketahui (device tidak ditemukan di PnP)' };" ^
+    "  Write-Host ('PnP Status     : ' + $pt);" ^
+    "  $dd = if ($a.DriverDate) { $a.DriverDate.ToString('yyyy-MM-dd') } else { '-' };" ^
+    "  $dv = if ($a.DriverVersionString) { $a.DriverVersionString } else { '-' };" ^
+    "  Write-Host ('Driver         : ' + $a.DriverProvider + ' | versi ' + $dv + ' | tanggal ' + $dd);" ^
+    "  Write-Host ('Status Link    : ' + $a.Status);" ^
+    "  Write-Host ('Link Speed     : ' + $a.LinkSpeed);" ^
+    "  $isWifi = ($a.PhysicalMediaType -match '802.11|Wireless') -or $sig.ContainsKey($a.Name);" ^
+    "  if (-not $isWifi) { Write-Host 'Signal         : N/A (bukan adapter WiFi)' } elseif ($sig.ContainsKey($a.Name)) { $v = $sig[$a.Name]; $q = if ($v -ge 70) { 'Bagus' } elseif ($v -ge 40) { 'Cukup' } else { 'Lemah' }; Write-Host ('Signal         : ' + $v + '%% (' + $q + ')') } else { Write-Host 'Signal         : tidak tersedia (WiFi belum terhubung ke jaringan)' };" ^
+    "  $gw = $null; $cfg = Get-NetIPConfiguration -InterfaceIndex $a.ifIndex; if ($cfg -and $cfg.IPv4DefaultGateway) { $gw = [string]$cfg.IPv4DefaultGateway.NextHop };" ^
+    "  if ($a.Status -ne 'Up') { Write-Host 'Gateway Ping   : dilewati (adapter tidak aktif/terhubung)'; Write-Host 'Packet Loss    : N/A' }" ^
+    "  elseif (-not $gw) { Write-Host 'Gateway Ping   : tidak ada default gateway (belum dapat IP/DHCP bermasalah)'; Write-Host 'Packet Loss    : N/A' }" ^
+    "  else { $p = New-Object System.Net.NetworkInformation.Ping; $n = 10; $ok = 0; $rt = @();" ^
+    "    for ($i = 0; $i -lt $n; $i++) { try { $r = $p.Send($gw, 1000); if ($r.Status -eq 'Success') { $ok++; $rt += $r.RoundtripTime } } catch { }; Start-Sleep -Milliseconds 100 };" ^
+    "    if ($ok -gt 0) { $avg = [math]::Round(($rt | Measure-Object -Average).Average, 1); Write-Host ('Gateway Ping   : ' + $gw + ' - balasan ' + $ok + '/' + $n + ', rata-rata ' + $avg + ' ms') } else { Write-Host ('Gateway Ping   : ' + $gw + ' - TIDAK ada balasan (0/' + $n + ')') };" ^
+    "    $loss = [math]::Round(($n - $ok) / $n * 100, 0); $lq = if ($loss -eq 0) { 'Baik' } elseif ($loss -le 5) { 'Ringan' } else { 'Buruk' };" ^
+    "    Write-Host ('Packet Loss    : ' + $loss + '%% (' + ($n - $ok) + ' dari ' + $n + ' paket hilang, ' + $lq + ')') }" ^
+    "};" ^
+    "Write-Host '===================================================='"
+
+echo.
+echo [INFO] Catatan: sebagian router memblokir ICMP, sehingga gateway ping bisa
+echo        tampak gagal padahal koneksi normal. PnP Status selain "OK" atau
+echo        kode error di Device Manager menandakan masalah driver/hardware.
+echo.
 exit /b 0
 
 :: ============================================================
