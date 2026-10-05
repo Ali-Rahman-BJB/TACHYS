@@ -84,7 +84,7 @@ echo -----------------------------------------------------
 echo         Pilih tool yang ingin dijalankan:
 echo  [s] Buka Windows Security Virus ^& threat protection Settings
 echo   1. Cek Kesehatan HDD/SSD
-echo   2. Cek Status WiFi Card ^& Adapter Detection
+echo   2. Cek Status Wi-Fi Card ^& Adapter Detection
 echo   3. Tes Keyboard Input
 echo   4. Tes Audio Output
 echo   5. Cek Kesehatan Baterai
@@ -98,14 +98,14 @@ goto :eof
 echo   Pilih tool yang ingin dijalankan:
 echo   [s] Buka Windows Security (Virus ^& threat protection)
 echo   1. Cek Kesehatan HDD/SSD         5. Cek Kesehatan Baterai
-echo   2. Cek WiFi ^& Adapter            6. Cek Program Berat
+echo   2. Cek Wi-Fi ^& Adapter            6. Cek Program Berat
 echo   3. Tes Keyboard Input            7. Nonaktifkan Fast Startup
 echo   4. Tes Audio Output              0. Keluar
 echo ==============================================================
 goto :eof
 
 :menu_mini
-echo  [s] Win Security  1. HDD/SSD  2. WiFi  3. Keyboard  4. Audio
+echo  [s] Win Security  1. HDD/SSD  2. Wi-Fi  3. Keyboard  4. Audio
 echo  5. Baterai  6. Program Berat  7. Fast Startup  0. Keluar
 goto :eof
 
@@ -152,10 +152,10 @@ exit /b 0
 :: 2. WIFI CHECK
 :: ============================================================
 :run_wifi_check
-echo [INFO] Memeriksa status WiFi Card ...
+echo [INFO] Memeriksa status Wi-Fi Card ...
 echo.
 call :wifi_adapter_detect
-echo [INFO] Detail koneksi WiFi ^(netsh^):
+echo [INFO] Detail koneksi Wi-Fi ^(netsh^):
 echo.
 
 if not exist "%TMP_DIR%" mkdir "%TMP_DIR%" >nul 2>&1
@@ -163,8 +163,8 @@ netsh wlan show interfaces > "%TMP_DIR%\wifi.txt" 2>nul
 
 findstr /i /c:"tidak dapat ditemukan" /c:"tidak ada antarmuka" /c:"not running" /c:"no wireless interface" "%TMP_DIR%\wifi.txt" >nul 2>&1
 if not errorlevel 1 (
-    echo [WARN] Tidak ditemukan interface WiFi pada sistem ini.
-    echo        ^(Wajar jika laptop/PC ini tidak memiliki WiFi card, atau adapter/driver-nya mati.^)
+    echo [WARN] Tidak ditemukan interface Wi-Fi pada sistem ini.
+    echo        ^(Wajar jika laptop/PC ini tidak memiliki Wi-Fi card, atau adapter/driver-nya mati.^)
     exit /b 1
 )
 
@@ -180,12 +180,12 @@ if errorlevel 1 (
 )
 
 echo.
-echo [INFO] Pemeriksaan WiFi selesai.
+echo [INFO] Pemeriksaan Wi-Fi selesai.
 echo        Jika "State" menunjukkan "disconnected", coba sambungkan ke jaringan terlebih dahulu.
 exit /b 0
 
 :: ============================================================
-:: 2b. ADAPTER DETECTION (dipanggil dari menu WiFi)
+:: 2b. ADAPTER DETECTION (dipanggil dari menu Wi-Fi)
 :: ============================================================
 :wifi_adapter_detect
 echo [INFO] Adapter Detection ^(PnP, driver, link speed, signal, gateway ping, packet loss^) ...
@@ -209,7 +209,7 @@ powershell -NoProfile -Command ^
     "  Write-Host ('Status Link    : ' + $a.Status);" ^
     "  Write-Host ('Link Speed     : ' + $a.LinkSpeed);" ^
     "  $isWifi = ($a.PhysicalMediaType -match '802.11|Wireless') -or $sig.ContainsKey($a.Name);" ^
-    "  if (-not $isWifi) { Write-Host 'Signal         : N/A (bukan adapter WiFi)' } elseif ($sig.ContainsKey($a.Name)) { $v = $sig[$a.Name]; $q = if ($v -ge 70) { 'Bagus' } elseif ($v -ge 40) { 'Cukup' } else { 'Lemah' }; Write-Host ('Signal         : ' + $v + '%% (' + $q + ')') } else { Write-Host 'Signal         : tidak tersedia (WiFi belum terhubung ke jaringan)' };" ^
+    "  if (-not $isWifi) { Write-Host 'Signal         : N/A (bukan adapter Wi-Fi)' } elseif ($sig.ContainsKey($a.Name)) { $v = $sig[$a.Name]; $q = if ($v -ge 70) { 'Bagus' } elseif ($v -ge 40) { 'Cukup' } else { 'Lemah' }; Write-Host ('Signal         : ' + $v + '%% (' + $q + ')') } else { Write-Host 'Signal         : tidak tersedia (Wi-Fi belum terhubung ke jaringan)' };" ^
     "  $gw = $null; $cfg = Get-NetIPConfiguration -InterfaceIndex $a.ifIndex; if ($cfg -and $cfg.IPv4DefaultGateway) { $gw = [string]$cfg.IPv4DefaultGateway.NextHop };" ^
     "  if ($a.Status -ne 'Up') { Write-Host 'Gateway Ping   : dilewati (adapter tidak aktif/terhubung)'; Write-Host 'Packet Loss    : N/A' }" ^
     "  elseif (-not $gw) { Write-Host 'Gateway Ping   : tidak ada default gateway (belum dapat IP/DHCP bermasalah)'; Write-Host 'Packet Loss    : N/A' }" ^
@@ -400,10 +400,11 @@ powershell -NoProfile -Command ^
     "$w = @(Get-CimInstance -ClassName Win32_Battery);" ^
     "$s = @(Get-CimInstance -Namespace 'root\wmi' -ClassName BatteryStatus);" ^
     "if ($w.Count -eq 0 -and $s.Count -eq 0) { Write-Host '[WARN] Tidak ditemukan baterai di sistem ini.'; Write-Host '       (Wajar jika ini PC desktop tanpa baterai, atau driver baterai tidak melaporkan data via WMI.)'; exit 2 };" ^
-    "$map = @{1='Discharging (memakai baterai)';2='Tersambung AC';3='Terisi penuh';4='Low';5='Critical';6='Charging';7='Charging';8='Charging';9='Charging';11='Terisi sebagian'};" ^
+    "$map = @{1='Sedang dipakai (baterai terkuras)';2='Tersambung ke listrik (AC)';3='Terisi penuh';4='Rendah';5='Kritis';6='Sedang mengisi';7='Sedang mengisi';8='Sedang mengisi';9='Sedang mengisi';11='Terisi sebagian'};" ^
+    "$chem = @{'LION'='Lithium-ion (Li-ion)';'LI-ION'='Lithium-ion (Li-ion)';'LIP'='Lithium Polymer (Li-Po)';'LIPO'='Lithium Polymer (Li-Po)';'NIMH'='Nickel-Metal Hydride (NiMH)';'NICD'='Nickel-Cadmium (NiCd)';'PBAC'='Timbal-asam (Lead Acid)';'LIFE'='Lithium Iron Phosphate (LiFePO4)'};" ^
     "Write-Host '=== Status Saat Ini ===';" ^
-    "foreach ($x in $w) { $st = $map[[int]$x.BatteryStatus]; if (-not $st) { $st = 'Tidak diketahui' }; Write-Host ('Status          : ' + $st); Write-Host ('Estimasi charge : ' + $x.EstimatedChargeRemaining + '%%'); $rt = [int]$x.EstimatedRunTime; if ($x.BatteryStatus -eq 1 -and $rt -gt 0 -and $rt -lt 71582788) { $hh = [math]::Floor($rt/60); Write-Host ('Estimasi sisa   : ' + $hh + ' jam ' + ($rt - $hh*60) + ' menit') } };" ^
-    "if ($w.Count -eq 0) { foreach ($x in $s) { $t = if ($x.Charging) { 'Charging' } elseif ($x.Discharging) { 'Discharging' } elseif ($x.PowerOnline) { 'Tersambung AC / Terisi penuh' } else { 'Tidak diketahui' }; Write-Host ('Status          : ' + $t) } };" ^
+    "foreach ($x in $w) { $st = $map[[int]$x.BatteryStatus]; if (-not $st) { $st = 'Tidak diketahui' }; Write-Host ('Status            : ' + $st); Write-Host ('Estimasi muatan   : ' + $x.EstimatedChargeRemaining + '%%'); $rt = [int]$x.EstimatedRunTime; if ($x.BatteryStatus -eq 1 -and $rt -gt 0 -and $rt -lt 71582788) { $hh = [math]::Floor($rt/60); Write-Host ('Estimasi sisa     : ' + $hh + ' jam ' + ($rt - $hh*60) + ' menit') } };" ^
+    "if ($w.Count -eq 0) { foreach ($x in $s) { $t = if ($x.Charging) { 'Sedang mengisi' } elseif ($x.Discharging) { 'Sedang dipakai (baterai terkuras)' } elseif ($x.PowerOnline) { 'Tersambung ke listrik (AC) / terisi penuh' } else { 'Tidak diketahui' }; Write-Host ('Status            : ' + $t) } };" ^
     "$xml = $env:BATXML;" ^
     "& powercfg /batteryreport /xml /output $xml 2>&1 | Out-Null;" ^
     "$bats = @();" ^
@@ -417,12 +418,12 @@ powershell -NoProfile -Command ^
     "$h = if ($d -gt 0) { [math]::Round($f/$d*100,1) } else { $null };" ^
     "$rate = if ($null -eq $h) { 'Tidak diketahui' } elseif ($h -ge 80) { 'Baik' } elseif ($h -ge 60) { 'Cukup, mulai menurun' } else { 'Buruk, pertimbangkan ganti baterai' };" ^
     "Write-Host ('--- Baterai #' + $i + ' ---');" ^
-    "if ($b.Manufacturer) { Write-Host ('Produsen        : ' + $b.Manufacturer) };" ^
-    "if ($b.Chemistry) { Write-Host ('Kimia           : ' + $b.Chemistry) };" ^
-    "Write-Host ('Design Capacity : ' + $d + ' mWh');" ^
-    "Write-Host ('Full Charge Cap : ' + $f + ' mWh');" ^
-    "if ($null -ne $h) { Write-Host ('Kesehatan       : ' + $h + '%% (' + $rate + ')'); Write-Host ('Tingkat keausan : ' + [math]::Round(100-$h,1) + '%%') };" ^
-    "if ($cc -gt 0) { Write-Host ('Cycle Count     : ' + $cc + ' siklus') } else { Write-Host 'Cycle Count     : tidak dilaporkan oleh baterai/driver ini (nilai 0 atau kosong)' } };" ^
+    "if ($b.Manufacturer) { Write-Host ('Produsen          : ' + $b.Manufacturer) };" ^
+    "if ($b.Chemistry) { $ck = ([string]$b.Chemistry).Trim().ToUpper(); $cn = $chem[$ck]; if (-not $cn) { $cn = $b.Chemistry }; Write-Host ('Jenis baterai     : ' + $cn) };" ^
+    "Write-Host ('Kapasitas desain  : ' + $d + ' mWh');" ^
+    "Write-Host ('Kapasitas penuh   : ' + $f + ' mWh (kondisi saat ini)');" ^
+    "if ($null -ne $h) { Write-Host ('Kesehatan         : ' + $h + '%% (' + $rate + ')'); Write-Host ('Tingkat keausan   : ' + [math]::Round(100-$h,1) + '%%') };" ^
+    "if ($cc -gt 0) { Write-Host ('Jumlah siklus     : ' + $cc + ' siklus') } else { Write-Host 'Jumlah siklus     : tidak dilaporkan oleh baterai/driver ini (nilai 0 atau kosong)' } };" ^
     "exit 0"
 
 if "%errorlevel%"=="2" exit /b 1

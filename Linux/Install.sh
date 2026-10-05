@@ -16,7 +16,7 @@ if [ "$AUTO_YES" -ne 1 ]; then
     echo "Skrip ini akan memasang launcher Tachys (shortcut) di:"
     echo "  $DESKTOP_FILE"
     echo
-    printf "Pasang launcher sekarang? [y/N]: "
+    printf "Pasang launcher sekarang? [Y/N]: "
     answer=""
     read -r answer || answer=""
     case "$answer" in
