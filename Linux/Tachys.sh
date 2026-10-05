@@ -184,79 +184,34 @@ smart() {
     fi
 }
 
-restart_as_root() {
-    local self v
-    local -a env_args=()
-    self="$SCRIPT_DIR/$(basename "${TACHYS_SELF:-$0}")"
-
-    for v in DISPLAY XAUTHORITY WAYLAND_DISPLAY XDG_RUNTIME_DIR DBUS_SESSION_BUS_ADDRESS TERM; do
-        if [ -n "${!v:-}" ]; then env_args+=("$v=${!v}"); fi
-    done
-
-    echo "[INFO] Menjalankan ulang Tachys sebagai root ..."
-    cleanup
-    exec sudo env -u TACHYS_FIXED -u TACHYS_SELF -u TACHYS_TMPSELF ${env_args[@]+"${env_args[@]}"} bash "$self"
-}
-
 ask_root_for_smart() {
     [ "$EUID" -eq 0 ] && return 0
 
     if [ "$SMART_SUDO" = 1 ]; then
-        sudo -v 2>/dev/null || SMART_SUDO=0
-        [ "$SMART_SUDO" = 1 ] && return 0
-    fi
-
-    if [ "$SMART_ASKED" = 1 ]; then
-        echo "[WARN] Berjalan tanpa root, data SMART mungkin tidak lengkap."
-        echo
+        if ! sudo -v 2>/dev/null; then
+            SMART_SUDO=0
+            echo "[WARN] Akses sudo habis, melanjutkan tanpa root (data mungkin tidak lengkap)."
+            echo
+        fi
         return 0
     fi
+
+    [ "$SMART_ASKED" = 1 ] && return 0
     SMART_ASKED=1
 
-    echo "[WARN] smartctl butuh akses root untuk membaca data SMART."
-    echo "       Tanpa root, data bisa tidak lengkap atau disk tidak terdeteksi."
-    echo
-    echo "Pilih cara melanjutkan:"
-    echo "  1. Jalankan ulang seluruh Tachys dengan sudo"
-    echo "  2. Tidak usah ulang Tachys, pakai sudo hanya untuk cek disk ini"
-    echo "  3. Lanjut tanpa root"
-    echo
-
     if ! command -v sudo >/dev/null 2>&1; then
-        echo "[ERROR] 'sudo' tidak ditemukan. Melanjutkan tanpa root."
-        echo "        (Alternatif: jalankan 'su -c \"bash Tachys.sh\"' lalu buka menu ini lagi.)"
+        echo "[WARN] 'sudo' tidak ditemukan, data SMART mungkin tidak lengkap."
         echo
         return 0
     fi
 
-    local choice
-    read -r -p "Pilihan [1-3, Enter = 2]: " choice
+    echo "[INFO] smartctl butuh akses root untuk membaca data SMART."
+    if sudo -v; then
+        SMART_SUDO=1
+    else
+        echo "[WARN] Gagal mendapat akses sudo, melanjutkan tanpa root (data mungkin tidak lengkap)."
+    fi
     echo
-
-    case "${choice:-2}" in
-        1)
-            if sudo -v; then
-                restart_as_root
-            fi
-            echo "[ERROR] Gagal mendapatkan akses sudo. Melanjutkan tanpa root."
-            ;;
-        2)
-            if sudo -v; then
-                SMART_SUDO=1
-                echo "[INFO] OK, sudo dipakai hanya untuk smartctl."
-            else
-                echo "[ERROR] Gagal mendapatkan akses sudo. Melanjutkan tanpa root."
-            fi
-            ;;
-        3)
-            echo "[INFO] Melanjutkan tanpa root."
-            ;;
-        *)
-            echo "[WARN] Pilihan tidak dikenali, melanjutkan tanpa root."
-            ;;
-    esac
-    echo
-    return 0
 }
 
 run_disk_health() {
