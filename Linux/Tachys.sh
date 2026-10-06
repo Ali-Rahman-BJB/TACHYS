@@ -4,6 +4,8 @@ set -u
 set -o pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${TACHYS_SELF:-$0}")" && pwd)"
+# Folder aplikasi Linux (TACHYS/Application/LINUX), sejajar dengan folder skrip (TACHYS/Linux)
+APP_DIR="$(dirname "$SCRIPT_DIR")/Application/LINUX"
 TMP_DIR=""
 
 cleanup() {
@@ -601,6 +603,7 @@ run_wifi_check() {
 # 3. KEYBOARD TESTER
 # ============================================================
 search_roots() {
+    [ -d "$APP_DIR" ] && printf '%s\n' "$APP_DIR"
     local d="$SCRIPT_DIR" i
     for i in 1 2 3; do
         [ "$d" = "/" ] && break
@@ -694,10 +697,10 @@ install_keyboard_deps() {
 # Hanya path source (keyboard-tester.c) yang dicetak ke stdout; pesan ke stderr.
 download_keyboard_source() {
     local base dest
-    for base in "$SCRIPT_DIR" "${XDG_CACHE_HOME:-$HOME/.cache}/tachys"; do
+    for base in "$APP_DIR" "${XDG_CACHE_HOME:-$HOME/.cache}/tachys"; do
         mkdir -p "$base" 2>/dev/null || continue
         [ -w "$base" ] || continue
-        dest="$base/keyboard-tester-src"
+        dest="$base/keyboard-tester"
 
         if [ -f "$dest/keyboard-tester.c" ]; then
             printf '%s' "$dest/keyboard-tester.c"
