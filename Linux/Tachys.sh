@@ -609,15 +609,23 @@ search_roots() {
     done
 }
 
+is_elf_binary() {
+    [ -f "$1" ] || return 1
+    [ "$(head -c 4 "$1" 2>/dev/null | od -An -tx1 | tr -d ' \n')" = "7f454c46" ]
+}
+
 find_keyboard_binary() {
     local r c
     while IFS= read -r r; do
-        c="$(find "$r" -maxdepth 4 -type f -name 'keyboard-tester' \
-                 -not -path '*/.git/*' 2>/dev/null | head -n 1)"
-        if [ -n "$c" ]; then
-            printf '%s' "$c"
-            return 0
-        fi
+        while IFS= read -r c; do
+            [ -n "$c" ] || continue
+            # Lewati binary non-Linux (mis. binary macOS di folder bin/ repo upstream)
+            if is_elf_binary "$c"; then
+                printf '%s' "$c"
+                return 0
+            fi
+        done < <(find "$r" -maxdepth 4 -type f -name 'keyboard-tester' \
+                     -not -path '*/.git/*' 2>/dev/null)
     done < <(search_roots)
     return 1
 }
@@ -635,11 +643,103 @@ find_keyboard_source() {
     return 1
 }
 
+KT_TARBALL_URL="https://github.com/inflex/keyboard-tester/archive/refs/heads/master.tar.gz"
+KT_GIT_URL="https://github.com/inflex/keyboard-tester.git"
+
+keyboard_deps_ok() {
+    command -v gcc >/dev/null 2>&1 || return 1
+    command -v sdl2-config >/dev/null 2>&1 || return 1
+    # Pastikan header SDL2_ttf juga ada
+    # shellcheck disable=SC2046
+    echo '#include <SDL_ttf.h>' | gcc $(sdl2-config --cflags) -E -x c - >/dev/null 2>&1 || return 1
+    return 0
+}
+
+install_keyboard_deps() {
+    keyboard_deps_ok && return 0
+
+    local SUDO=""
+    if [ "$EUID" -ne 0 ]; then
+        if command -v sudo >/dev/null 2>&1; then
+            SUDO="sudo"
+        else
+            echo "[ERROR] Dependensi belum lengkap dan 'sudo' tidak tersedia."
+            echo "        Install manual: build-essential libsdl2-dev libsdl2-ttf-dev"
+            return 1
+        fi
+    fi
+
+    echo "[INFO] Dependensi build (gcc, SDL2, SDL2_ttf) belum lengkap, mencoba install otomatis ..."
+    if command -v apt-get >/dev/null 2>&1; then
+        $SUDO apt-get update && $SUDO apt-get install -y build-essential libsdl2-dev libsdl2-ttf-dev
+    elif command -v dnf >/dev/null 2>&1; then
+        $SUDO dnf install -y gcc make SDL2-devel SDL2_ttf-devel
+    elif command -v pacman >/dev/null 2>&1; then
+        $SUDO pacman -S --needed --noconfirm base-devel sdl2 sdl2_ttf
+    elif command -v zypper >/dev/null 2>&1; then
+        $SUDO zypper install -y gcc make libSDL2-devel libSDL2_ttf-devel
+    else
+        echo "[ERROR] Package manager tidak dikenali. Install manual: gcc, make, SDL2 dev, SDL2_ttf dev."
+        return 1
+    fi
+
+    if ! keyboard_deps_ok; then
+        echo "[ERROR] Dependensi masih belum lengkap setelah install."
+        return 1
+    fi
+    return 0
+}
+
+# Mengunduh source keyboard-tester dari GitHub (inflex/keyboard-tester).
+# Hanya path source (keyboard-tester.c) yang dicetak ke stdout; pesan ke stderr.
+download_keyboard_source() {
+    local base dest
+    for base in "$SCRIPT_DIR" "${XDG_CACHE_HOME:-$HOME/.cache}/tachys"; do
+        mkdir -p "$base" 2>/dev/null || continue
+        [ -w "$base" ] || continue
+        dest="$base/keyboard-tester-src"
+
+        if [ -f "$dest/keyboard-tester.c" ]; then
+            printf '%s' "$dest/keyboard-tester.c"
+            return 0
+        fi
+
+        rm -rf "$dest" 2>/dev/null
+        echo "[INFO] Mengunduh source keyboard-tester ke: $dest" >&2
+
+        if command -v git >/dev/null 2>&1 \
+            && git clone --depth 1 "$KT_GIT_URL" "$dest" >&2 2>&1; then
+            :
+        elif command -v curl >/dev/null 2>&1 \
+            && mkdir -p "$dest" \
+            && curl -fsSL "$KT_TARBALL_URL" | tar -xz --strip-components=1 -C "$dest" 2>/dev/null; then
+            :
+        elif command -v wget >/dev/null 2>&1 \
+            && mkdir -p "$dest" \
+            && wget -qO- "$KT_TARBALL_URL" | tar -xz --strip-components=1 -C "$dest" 2>/dev/null; then
+            :
+        else
+            rm -rf "$dest" 2>/dev/null
+            continue
+        fi
+
+        if [ -f "$dest/keyboard-tester.c" ]; then
+            printf '%s' "$dest/keyboard-tester.c"
+            return 0
+        fi
+        rm -rf "$dest" 2>/dev/null
+    done
+
+    echo "[ERROR] Gagal mengunduh keyboard-tester dari GitHub." >&2
+    echo "        Pastikan internet aktif dan 'git' atau 'curl' atau 'wget' terpasang," >&2
+    echo "        atau unduh manual: https://github.com/inflex/keyboard-tester" >&2
+    return 1
+}
+
 build_keyboard_tester() {
     local src="$1" out="$2"
 
-    command -v gcc >/dev/null 2>&1 || { echo "[ERROR] gcc tidak ditemukan. sudo apt install build-essential"; return 1; }
-    command -v sdl2-config >/dev/null 2>&1 || { echo "[ERROR] SDL2 dev tidak ditemukan. sudo apt install libsdl2-dev libsdl2-ttf-dev"; return 1; }
+    install_keyboard_deps || return 1
 
     echo "[INFO] Binary belum ada, membangun dari source: $src"
     if ! gcc -Wall -O2 $(sdl2-config --cflags) "$src" -o "$out" \
@@ -672,16 +772,22 @@ run_keyboard_tester() {
                 return 1
             fi
         fi
-    elif src_c="$(find_keyboard_source)"; then
-        build_keyboard_tester "$src_c" "$dst_app" || return 1
     else
-        echo "[ERROR] keyboard-tester (binary maupun keyboard-tester.c) tidak ditemukan."
-        echo "        Lokasi skrip   : $SCRIPT_DIR"
-        echo "        Folder dicari  :"
-        search_roots | sed 's/^/          /'
-        echo "        Isi folder skrip:"
-        ls -la "$SCRIPT_DIR" 2>&1 | sed 's/^/          /'
-        return 1
+        if ! src_c="$(find_keyboard_source)"; then
+            echo "[INFO] keyboard-tester (binary/source) tidak ditemukan di folder aplikasi."
+            echo "[INFO] Mengunduh dan membangun otomatis dari GitHub ..."
+            if ! src_c="$(download_keyboard_source)"; then
+                echo "        Lokasi skrip   : $SCRIPT_DIR"
+                echo "        Folder dicari  :"
+                search_roots | sed 's/^/          /'
+                return 1
+            fi
+        fi
+        build_keyboard_tester "$src_c" "$dst_app" || return 1
+
+        # Simpan binary hasil build di samping source agar run berikutnya tidak build ulang
+        cp "$dst_app" "$(dirname "$src_c")/keyboard-tester" 2>/dev/null \
+            && echo "[INFO] Binary disimpan: $(dirname "$src_c")/keyboard-tester"
     fi
 
     if command -v ldd >/dev/null 2>&1; then
