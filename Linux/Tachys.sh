@@ -122,12 +122,12 @@ show_menu() {
     blank
     if [ "$MENU2" = 1 ]; then
         printf "${C_TEAL}  %-30s%s${C_RST}\n" "1. Cek Kesehatan HDD/SSD" "5. Cek Kesehatan Baterai"
-        printf "${C_TEAL}  %-30s%s${C_RST}\n" "2. Cek Status WiFi Card"  "6. Cek Program Berat"
+        printf "${C_TEAL}  %-30s%s${C_RST}\n" "2. Cek Status Wi-Fi Card"  "6. Cek Program Berat"
         printf "${C_TEAL}  %-30s%s${C_RST}\n" "3. Tes Keyboard"          "0. Keluar"
         printf "${C_TEAL}  %-30s%s${C_RST}\n" "4. Tes Audio"             ""
     else
         echo -e "${C_TEAL}  1. Cek Kesehatan HDD/SSD${C_RST}"
-        echo -e "${C_TEAL}  2. Cek Status WiFi Card${C_RST}"
+        echo -e "${C_TEAL}  2. Cek Status Wi-Fi Card${C_RST}"
         echo -e "${C_TEAL}  3. Tes Keyboard${C_RST}"
         echo -e "${C_TEAL}  4. Tes Audio${C_RST}"
         echo -e "${C_TEAL}  5. Cek Kesehatan Baterai${C_RST}"
@@ -445,7 +445,7 @@ show_wifi_driver() {
         fi
     else
         printf '%-15s: %s\n' "Driver" "tidak terdeteksi"
-        echo "[WARN] Tidak ada driver yang terikat ke WiFi card ini (belum terpasang / gagal dimuat)."
+        echo "[WARN] Tidak ada driver yang terikat ke Wi-Fi card ini (belum terpasang / gagal dimuat)."
     fi
     [ -n "$bus" ] && printf '%-15s: %s\n' "Bus" "${bus^^}"
     [ -n "$hw" ]  && printf '%-15s: %s\n' "Perangkat" "$hw"
@@ -455,7 +455,7 @@ show_wifi_driver() {
 }
 
 run_wifi_check() {
-    echo "[INFO] Memeriksa status WiFi Card ..."
+    echo "[INFO] Memeriksa status Wi-Fi Card ..."
     echo
 
     local wifi_iface="" p
@@ -477,8 +477,8 @@ run_wifi_check() {
     fi
 
     if [ -z "$wifi_iface" ]; then
-        echo "[WARN] Tidak ditemukan interface WiFi pada sistem ini."
-        echo "       (Wajar jika laptop/PC ini tidak memiliki WiFi card atau modul WiFi mati.)"
+        echo "[WARN] Tidak ditemukan interface Wi-Fi pada sistem ini."
+        echo "       (Wajar jika laptop/PC ini tidak memiliki Wi-Fi card atau modul Wi-Fi mati.)"
 
         local lspci_bin hw_found
         if lspci_bin="$(find_tool lspci)"; then
@@ -495,7 +495,7 @@ run_wifi_check() {
         return 1
     fi
 
-    echo "Interface WiFi : $wifi_iface"
+    echo "Interface Wi-Fi : $wifi_iface"
     show_wifi_driver "$wifi_iface"
 
     local state=""
@@ -507,7 +507,7 @@ run_wifi_check() {
         local blocked
         blocked="$(rfkill list wifi 2>/dev/null | grep -i "Soft blocked: yes\|Hard blocked: yes")"
         if [ -n "$blocked" ]; then
-            echo "[WARN] WiFi dalam keadaan diblokir (rfkill):"
+            echo "[WARN] Wi-Fi dalam keadaan diblokir (rfkill):"
             echo "$blocked"
         fi
     fi
@@ -539,7 +539,7 @@ run_wifi_check() {
                 echo "Kualitas       : Lemah"
             fi
         else
-            echo "[WARN] Tidak sedang terhubung ke jaringan WiFi manapun."
+            echo "[WARN] Tidak sedang terhubung ke jaringan Wi-Fi manapun."
         fi
     elif [ -r /proc/net/wireless ]; then
         local quality
