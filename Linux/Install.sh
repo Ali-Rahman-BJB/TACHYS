@@ -14,7 +14,7 @@ case "${1:-}" in
 esac
 
 if [ "$AUTO_YES" -ne 1 ]; then
-    echo "Skrip ini akan memasang launcher Tachys (shortcut) di:"
+    echo "Script ini akan memasang launcher Tachys (shortcut) di:"
     echo "  $DESKTOP_FILE"
     echo
     printf "Pasang launcher sekarang? [Y/N]: "

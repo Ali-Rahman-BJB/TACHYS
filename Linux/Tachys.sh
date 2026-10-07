@@ -4,7 +4,7 @@ set -u
 set -o pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${TACHYS_SELF:-$0}")" && pwd)"
-# Folder aplikasi Linux (TACHYS/Application/LINUX), sejajar dengan folder skrip (TACHYS/Linux)
+# Folder aplikasi Linux (TACHYS/Application/LINUX), sejajar dengan folder script (TACHYS/Linux)
 APP_DIR="$(dirname "$SCRIPT_DIR")/Application/LINUX"
 TMP_DIR=""
 
@@ -780,7 +780,7 @@ run_keyboard_tester() {
             echo "[INFO] keyboard-tester (binary/source) tidak ditemukan di folder aplikasi."
             echo "[INFO] Mengunduh dan membangun otomatis dari GitHub ..."
             if ! src_c="$(download_keyboard_source)"; then
-                echo "        Lokasi skrip   : $SCRIPT_DIR"
+                echo "        Lokasi script   : $SCRIPT_DIR"
                 echo "        Folder dicari  :"
                 search_roots | sed 's/^/          /'
                 return 1
