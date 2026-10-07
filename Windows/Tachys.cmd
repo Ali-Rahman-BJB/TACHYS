@@ -266,7 +266,7 @@ echo [INFO] Menyiapkan Keyboard Tester ...
 call :find_keytest
 
 if not exist "%KEYTEST_APP%" (
-    echo [ERROR] File KeyboardTestUtility.exe tidak ditemukan di flashdisk ini.
+    echo [ERROR] File KeyboardTestUtility.exe tidak ditemukan di flash drive ini.
     echo         Sudah dicoba beberapa lokasi umum, termasuk pencarian otomatis
     echo         ke seluruh drive %DRIVE_ROOT%, tapi file tidak ditemukan.
     echo.
@@ -294,7 +294,7 @@ if "%RTP_STATUS%"=="1" (
     echo.
     echo [PERINGATAN] Real-Time Protection Windows Security sedang AKTIF.
     echo              KeyboardTestUtility.exe TIDAK akan disalin/dijalankan, supaya
-    echo              file aslinya di flashdisk tidak ikut dihapus/dikarantina.
+    echo              file aslinya di flash drive tidak ikut dihapus/dikarantina.
     echo              ^(Menyalin file saja sudah bisa memicu Windows Security
     echo              memindai lalu menghapus filenya.^)
     echo.
@@ -323,7 +323,7 @@ if not exist "%TMP_DIR%" (
 copy /y "%KEYTEST_APP%" "%TMP_DIR%\KeyboardTestUtility.exe" >nul 2>&1
 if errorlevel 1 (
     echo [ERROR] Gagal menyalin file ke %TMP_DIR%
-    echo         Kemungkinan penyebab: flashdisk terlepas, ruang disk penuh,
+    echo         Kemungkinan penyebab: flash drive terlepas, ruang disk penuh,
     echo         tidak ada izin tulis ke folder temp, atau file baru saja
     echo         dihapus/dikarantina oleh antivirus lain saat proses ini berjalan.
     echo.

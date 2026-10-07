@@ -271,7 +271,7 @@ run_disk_health() {
             mmcblk*) kind="eMMC / SD card" ;;
             nvme*)   kind="NVMe SSD" ;;
             *)
-                if [ "$tran" = "usb" ]; then kind="USB (flashdisk / disk eksternal)"
+                if [ "$tran" = "usb" ]; then kind="USB (flash drive / disk eksternal)"
                 elif [ "$rota" = "1" ]; then kind="HDD"
                 else kind="SSD"
                 fi
@@ -315,7 +315,7 @@ run_disk_health() {
                     esac
                 fi
             else
-                echo "              (Wajar untuk flashdisk USB, SD card, dan eMMC: tidak punya fitur SMART.)"
+                echo "              (Wajar untuk flash drive USB, SD card, dan eMMC: tidak punya fitur SMART.)"
             fi
             echo
             continue
