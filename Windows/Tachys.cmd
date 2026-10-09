@@ -81,7 +81,7 @@ goto :menu_%TIER%
 
 :menu_full
 echo -----------------------------------------------------
-echo         Pilih tool yang ingin dijalankan:
+echo         Pilih toolkit yang ingin dijalankan:
 echo  [s] Buka Windows Security Virus ^& threat protection Settings
 echo   1. Cek Kesehatan HDD/SSD
 echo   2. Cek Status Wi-Fi Card ^& Adapter Detection
@@ -95,7 +95,7 @@ echo -----------------------------------------------------
 goto :eof
 
 :menu_compact
-echo   Pilih tool yang ingin dijalankan:
+echo   Pilih toolkit yang ingin dijalankan:
 echo   [s] Buka Windows Security (Virus ^& threat protection)
 echo   1. Cek Kesehatan HDD/SSD         5. Cek Kesehatan Baterai
 echo   2. Cek Wi-Fi ^& Adapter            6. Cek Program Berat
@@ -525,7 +525,7 @@ echo [PENTING] Tachys TIDAK mematikan Real-Time Protection secara otomatis.
 echo           Halaman pengaturan akan dibuka agar Anda bisa menonaktifkannya
 echo           SENDIRI secara manual jika memang diperlukan, lalu jangan lupa
 echo           mengaktifkannya kembali setelah selesai untuk menjaga keamanan
-echo           perangkat.
+echo           device.
 echo.
 
 start "" windowsdefender://threatsettings

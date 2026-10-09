@@ -117,7 +117,7 @@ show_menu() {
     [ "$TERM_COLS" -lt 77 ] && LINE="${LINE:0:$(( TERM_COLS - 1 ))}"
 
     [ "$MINI" = 1 ] || echo -e "${C_LINE}${LINE}${C_RST}"
-    echo -e "${C_SUB}        Pilih tool yang ingin dijalankan:${C_RST}"
+    echo -e "${C_SUB}        Pilih Toolkit yang ingin dijalankan:${C_RST}"
     blank
     if [ "$MENU2" = 1 ]; then
         printf "${C_TEAL}  %-30s%s${C_RST}\n" "1. Cek Kesehatan HDD/SSD" "5. Cek Kesehatan Baterai"
@@ -447,7 +447,7 @@ show_wifi_driver() {
         echo "[WARN] Tidak ada driver yang terikat ke Wi-Fi card ini (belum terpasang / gagal dimuat)."
     fi
     [ -n "$bus" ] && printf '%-15s: %s\n' "Bus" "${bus^^}"
-    [ -n "$hw" ]  && printf '%-15s: %s\n' "Perangkat" "$hw"
+    [ -n "$hw" ]  && printf '%-15s: %s\n' "Device" "$hw"
     [ -n "$ver" ] && printf '%-15s: %s\n' "Versi Driver" "$ver"
     [ -n "$fw" ]  && printf '%-15s: %s\n' "Firmware" "$fw"
     return 0
@@ -486,7 +486,7 @@ run_wifi_check() {
                 show { print }')"
             if [ -n "$hw_found" ]; then
                 echo
-                echo "[INFO] Perangkat jaringan nirkabel terdeteksi di hardware (PCI):"
+                echo "[INFO] Device jaringan nirkabel terdeteksi di hardware (PCI):"
                 echo "$hw_found" | sed 's/^/       /'
                 echo "       Jika tidak ada baris 'Kernel driver in use', driver belum terpasang."
             fi
@@ -621,7 +621,6 @@ find_keyboard_binary() {
     while IFS= read -r r; do
         while IFS= read -r c; do
             [ -n "$c" ] || continue
-            # Lewati binary non-Linux (mis. binary macOS di folder bin/ repo upstream)
             if is_elf_binary "$c"; then
                 printf '%s' "$c"
                 return 0
@@ -651,8 +650,6 @@ KT_GIT_URL="https://github.com/inflex/keyboard-tester.git"
 keyboard_deps_ok() {
     command -v gcc >/dev/null 2>&1 || return 1
     command -v sdl2-config >/dev/null 2>&1 || return 1
-    # Pastikan header SDL2_ttf juga ada
-    # shellcheck disable=SC2046
     echo '#include <SDL_ttf.h>' | gcc $(sdl2-config --cflags) -E -x c - >/dev/null 2>&1 || return 1
     return 0
 }
@@ -692,8 +689,6 @@ install_keyboard_deps() {
     return 0
 }
 
-# Mengunduh source keyboard-tester dari GitHub (inflex/keyboard-tester).
-# Hanya path source (keyboard-tester.c) yang dicetak ke stdout; pesan ke stderr.
 download_keyboard_source() {
     local base dest
     for base in "$APP_DIR" "${XDG_CACHE_HOME:-$HOME/.cache}/tachys"; do
@@ -732,7 +727,7 @@ download_keyboard_source() {
         rm -rf "$dest" 2>/dev/null
     done
 
-    echo "[ERROR] Gagal mengunduh keyboard-tester dari GitHub." >&2
+    echo "[ERROR] Gagal mengunduh Keyboard Tester dari GitHub." >&2
     echo "        Pastikan internet aktif dan 'git' atau 'curl' atau 'wget' terpasang," >&2
     echo "        atau unduh manual: https://github.com/inflex/keyboard-tester" >&2
     return 1
@@ -776,7 +771,7 @@ run_keyboard_tester() {
         fi
     else
         if ! src_c="$(find_keyboard_source)"; then
-            echo "[INFO] keyboard-tester (binary/source) tidak ditemukan di folder aplikasi."
+            echo "[INFO] Keyboard Tester (binary/source) tidak ditemukan di folder aplikasi."
             echo "[INFO] Mengunduh dan membangun otomatis dari GitHub ..."
             if ! src_c="$(download_keyboard_source)"; then
                 echo "        Lokasi script   : $SCRIPT_DIR"
@@ -787,7 +782,6 @@ run_keyboard_tester() {
         fi
         build_keyboard_tester "$src_c" "$dst_app" || return 1
 
-        # Simpan binary hasil build di samping source agar run berikutnya tidak build ulang
         cp "$dst_app" "$(dirname "$src_c")/keyboard-tester" 2>/dev/null \
             && echo "[INFO] Binary disimpan: $(dirname "$src_c")/keyboard-tester"
     fi
@@ -822,7 +816,7 @@ run_audio_output_test() {
     echo
 
     if ! command -v speaker-test >/dev/null 2>&1; then
-        echo "[ERROR] Tool 'speaker-test' (paket alsa-utils) tidak ditemukan."
+        echo "[ERROR] 'speaker-test' (paket alsa-utils) tidak ditemukan."
         echo
         echo "Silakan install terlebih dahulu:"
         echo "  Ubuntu/Debian : sudo apt install alsa-utils"
