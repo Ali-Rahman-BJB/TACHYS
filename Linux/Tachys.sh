@@ -4,7 +4,6 @@ set -u
 set -o pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${TACHYS_SELF:-$0}")" && pwd)"
-# Folder aplikasi Linux (TACHYS/Application/LINUX), sejajar dengan folder script (TACHYS/Linux)
 APP_DIR="$(dirname "$SCRIPT_DIR")/Application/LINUX"
 TMP_DIR=""
 
