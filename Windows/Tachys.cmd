@@ -81,10 +81,10 @@ goto :menu_%TIER%
 
 :menu_full
 echo -----------------------------------------------------
-echo         Pilih toolkit yang ingin dijalankan:
+echo         Pilih Toolkit yang ingin dijalankan:
 echo  [s] Buka Windows Security Virus ^& threat protection Settings
 echo   1. Cek Kesehatan HDD/SSD
-echo   2. Cek Status Wi-Fi Card ^& Adapter Detection
+echo   2. Cek Status Wi-Fi Card
 echo   3. Tes Keyboard Input
 echo   4. Tes Audio Output
 echo   5. Cek Kesehatan Baterai
@@ -95,10 +95,10 @@ echo -----------------------------------------------------
 goto :eof
 
 :menu_compact
-echo   Pilih toolkit yang ingin dijalankan:
+echo   Pilih Toolkit yang ingin dijalankan:
 echo   [s] Buka Windows Security (Virus ^& threat protection)
 echo   1. Cek Kesehatan HDD/SSD         5. Cek Kesehatan Baterai
-echo   2. Cek Wi-Fi ^& Adapter          6. Cek Program Berat
+echo   2. Cek Wi-Fi                     6. Cek Program Berat
 echo   3. Tes Keyboard Input            7. Nonaktifkan Fast Startup
 echo   4. Tes Audio Output              0. Keluar
 echo ==============================================================
@@ -188,7 +188,7 @@ exit /b 0
 :: 2b. ADAPTER DETECTION (dipanggil dari menu Wi-Fi)
 :: ============================================================
 :wifi_adapter_detect
-echo [INFO] Adapter Detection ^(PnP, driver, link speed, signal, gateway ping, packet loss^) ...
+echo [INFO] Adapter Detection ^(PnP, driver, link speed, signal, ping gateway, packet loss^) ...
 echo.
 
 powershell -NoProfile -Command ^
@@ -209,20 +209,20 @@ powershell -NoProfile -Command ^
     "  Write-Host ('Status Link    : ' + $a.Status);" ^
     "  Write-Host ('Link Speed     : ' + $a.LinkSpeed);" ^
     "  $isWifi = ($a.PhysicalMediaType -match '802.11|Wireless') -or $sig.ContainsKey($a.Name);" ^
-    "  if (-not $isWifi) { Write-Host 'Signal         : N/A (bukan adapter Wi-Fi)' } elseif ($sig.ContainsKey($a.Name)) { $v = $sig[$a.Name]; $q = if ($v -ge 70) { 'Bagus' } elseif ($v -ge 40) { 'Cukup' } else { 'Lemah' }; Write-Host ('Signal         : ' + $v + '%% (' + $q + ')') } else { Write-Host 'Signal         : tidak tersedia (Wi-Fi belum terhubung ke jaringan)' };" ^
+    "  if (-not $isWifi) { Write-Host 'Signal         : N/A (bukan adapter Wi-Fi)' } elseif ($sig.ContainsKey($a.Name)) { $v = $sig[$a.Name]; $q = if ($v -ge 70) { 'Kuat' } elseif ($v -ge 40) { 'Sedang' } else { 'Lemah' }; Write-Host ('Signal         : ' + $v + '%% (' + $q + ')') } else { Write-Host 'Signal         : tidak tersedia (Wi-Fi belum terhubung ke jaringan)' };" ^
     "  $gw = $null; $cfg = Get-NetIPConfiguration -InterfaceIndex $a.ifIndex; if ($cfg -and $cfg.IPv4DefaultGateway) { $gw = [string]$cfg.IPv4DefaultGateway.NextHop };" ^
-    "  if ($a.Status -ne 'Up') { Write-Host 'Gateway Ping   : dilewati (adapter tidak aktif/terhubung)'; Write-Host 'Packet Loss    : N/A' }" ^
-    "  elseif (-not $gw) { Write-Host 'Gateway Ping   : tidak ada default gateway (belum dapat IP/DHCP bermasalah)'; Write-Host 'Packet Loss    : N/A' }" ^
+    "  if ($a.Status -ne 'Up') { Write-Host 'Ping Gateway   : dilewati (adapter tidak aktif/terhubung)'; Write-Host 'Packet Loss    : N/A' }" ^
+    "  elseif (-not $gw) { Write-Host 'Ping Gateway   : tidak ada default gateway (belum dapat IP/DHCP bermasalah)'; Write-Host 'Packet Loss    : N/A' }" ^
     "  else { $p = New-Object System.Net.NetworkInformation.Ping; $n = 10; $ok = 0; $rt = @();" ^
     "    for ($i = 0; $i -lt $n; $i++) { try { $r = $p.Send($gw, 1000); if ($r.Status -eq 'Success') { $ok++; $rt += $r.RoundtripTime } } catch { }; Start-Sleep -Milliseconds 100 };" ^
-    "    if ($ok -gt 0) { $avg = [math]::Round(($rt | Measure-Object -Average).Average, 1); Write-Host ('Gateway Ping   : ' + $gw + ' - balasan ' + $ok + '/' + $n + ', rata-rata ' + $avg + ' ms') } else { Write-Host ('Gateway Ping   : ' + $gw + ' - TIDAK ada balasan (0/' + $n + ')') };" ^
+    "    if ($ok -gt 0) { $avg = [math]::Round(($rt | Measure-Object -Average).Average, 1); Write-Host ('Ping Gateway   : ' + $gw + ' - balasan ' + $ok + '/' + $n + ', rata-rata ' + $avg + ' ms') } else { Write-Host ('Ping Gateway   : ' + $gw + ' - TIDAK ada balasan (0/' + $n + ')') };" ^
     "    $loss = [math]::Round(($n - $ok) / $n * 100, 0); $lq = if ($loss -eq 0) { 'Baik' } elseif ($loss -le 5) { 'Ringan' } else { 'Buruk' };" ^
     "    Write-Host ('Packet Loss    : ' + $loss + '%% (' + ($n - $ok) + ' dari ' + $n + ' paket hilang, ' + $lq + ')') }" ^
     "};" ^
     "Write-Host '===================================================='"
 
 echo.
-echo [INFO] Catatan: sebagian router memblokir ICMP, sehingga gateway ping bisa
+echo [INFO] Catatan: sebagian router memblokir ICMP, sehingga ping gateway bisa
 echo        tampak gagal padahal koneksi normal. PnP Status selain "OK" atau
 echo        kode error di Device Manager menandakan masalah driver/hardware.
 echo.
@@ -327,7 +327,7 @@ if errorlevel 1 (
     echo         tidak ada izin write ke folder temp, atau file baru saja
     echo         dihapus/dikarantina oleh antivirus lain saat proses ini berjalan.
     echo.
-    echo [SOLUSI] Solusi: Matikan Real-time Protection di Windows Security/Antivirus.
+    echo [SOLUSI] Matikan Real-Time Protection di Windows Security/Antivirus.
     echo.
     exit /b 1
 )
@@ -364,7 +364,7 @@ if errorlevel 1 (
     echo [WARN] Gagal memutar suara sistem, mencoba system beep sebagai gantinya ...
     powershell -NoProfile -Command "[console]::beep(800,400); Start-Sleep -Milliseconds 100; [console]::beep(1000,400)" >nul 2>&1
     if errorlevel 1 (
-        echo [ERROR] Tidak bisa memutar suara test sama sekali di sistem ini.
+        echo [ERROR] Tidak bisa memutar test output audio sama sekali di sistem ini.
         echo         Kemungkinan tidak ada output audio yang aktif/terpasang.
         exit /b 1
     )
@@ -403,7 +403,7 @@ powershell -NoProfile -Command ^
     "$map = @{1='Sedang dipakai (baterai terkuras)';2='Tersambung ke listrik (AC)';3='Terisi penuh';4='Rendah';5='Kritis';6='Sedang mengisi';7='Sedang mengisi';8='Sedang mengisi';9='Sedang mengisi';11='Terisi sebagian'};" ^
     "$chem = @{'LION'='Lithium-ion (Li-ion)';'LI-ION'='Lithium-ion (Li-ion)';'LIP'='Lithium Polymer (Li-Po)';'LIPO'='Lithium Polymer (Li-Po)';'NIMH'='Nickel-Metal Hydride (NiMH)';'NICD'='Nickel-Cadmium (NiCd)';'PBAC'='Timbal-asam (Lead Acid)';'LIFE'='Lithium Iron Phosphate (LiFePO4)'};" ^
     "Write-Host '=== Status Saat Ini ===';" ^
-    "foreach ($x in $w) { $st = $map[[int]$x.BatteryStatus]; if (-not $st) { $st = 'Tidak diketahui' }; Write-Host ('Status            : ' + $st); Write-Host ('Estimasi muatan   : ' + $x.EstimatedChargeRemaining + '%%'); $rt = [int]$x.EstimatedRunTime; if ($x.BatteryStatus -eq 1 -and $rt -gt 0 -and $rt -lt 71582788) { $hh = [math]::Floor($rt/60); Write-Host ('Estimasi sisa     : ' + $hh + ' jam ' + ($rt - $hh*60) + ' menit') } };" ^
+    "foreach ($x in $w) { $st = $map[[int]$x.BatteryStatus]; if (-not $st) { $st = 'Tidak diketahui' }; Write-Host ('Status            : ' + $st); Write-Host ('Estimasi kapasitas   : ' + $x.EstimatedChargeRemaining + '%%'); $rt = [int]$x.EstimatedRunTime; if ($x.BatteryStatus -eq 1 -and $rt -gt 0 -and $rt -lt 71582788) { $hh = [math]::Floor($rt/60); Write-Host ('Estimasi sisa     : ' + $hh + ' jam ' + ($rt - $hh*60) + ' menit') } };" ^
     "if ($w.Count -eq 0) { foreach ($x in $s) { $t = if ($x.Charging) { 'Sedang mengisi' } elseif ($x.Discharging) { 'Sedang dipakai (baterai terkuras)' } elseif ($x.PowerOnline) { 'Tersambung ke listrik (AC) / terisi penuh' } else { 'Tidak diketahui' }; Write-Host ('Status            : ' + $t) } };" ^
     "$xml = $env:BATXML;" ^
     "& powercfg /batteryreport /xml /output $xml 2>&1 | Out-Null;" ^
@@ -423,7 +423,7 @@ powershell -NoProfile -Command ^
     "Write-Host ('Kapasitas desain  : ' + $d + ' mWh');" ^
     "Write-Host ('Kapasitas penuh   : ' + $f + ' mWh (kondisi saat ini)');" ^
     "if ($null -ne $h) { Write-Host ('Kesehatan         : ' + $h + '%% (' + $rate + ')'); Write-Host ('Tingkat keausan   : ' + [math]::Round(100-$h,1) + '%%') };" ^
-    "if ($cc -gt 0) { Write-Host ('Jumlah siklus     : ' + $cc + ' siklus') } else { Write-Host 'Jumlah siklus     : tidak dilaporkan oleh baterai/driver ini (nilai 0 atau kosong)' } };" ^
+    "if ($cc -gt 0) { Write-Host ('Cycle Count       : ' + $cc + ' siklus') } else { Write-Host 'Cycle Count       : tidak dilaporkan oleh baterai/driver ini (nilai 0 atau kosong)' } };" ^
     "exit 0"
 
 if "%errorlevel%"=="2" exit /b 1
@@ -443,7 +443,7 @@ if exist "%BATREPORT%" (
 exit /b 0
 
 :: ============================================================
-:: 6. ANTIVIRUS / PROSES BERAT
+:: 6. PROSES BERAT / ANTIVIRUS
 :: ============================================================
 :run_process_monitor
 echo [INFO] Memeriksa proses antivirus / program berat yang berjalan ...
@@ -585,6 +585,6 @@ if "%pilihan%"=="1" (
 )
 
 echo.
-echo Tekan sembarang tombol untuk kembali ke menu...
+echo Tekan sembarang tombol untuk kembali ke menu ...
 pause >nul
 goto :main

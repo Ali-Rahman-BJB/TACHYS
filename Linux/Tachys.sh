@@ -122,13 +122,13 @@ show_menu() {
     if [ "$MENU2" = 1 ]; then
         printf "${C_TEAL}  %-30s%s${C_RST}\n" "1. Cek Kesehatan HDD/SSD" "5. Cek Kesehatan Baterai"
         printf "${C_TEAL}  %-30s%s${C_RST}\n" "2. Cek Status Wi-Fi Card" "6. Cek Program Berat"
-        printf "${C_TEAL}  %-30s%s${C_RST}\n" "3. Tes Keyboard"          "0. Keluar"
-        printf "${C_TEAL}  %-30s%s${C_RST}\n" "4. Tes Audio"             ""
+        printf "${C_TEAL}  %-30s%s${C_RST}\n" "3. Tes Keyboard Input"    "0. Keluar"
+        printf "${C_TEAL}  %-30s%s${C_RST}\n" "4. Tes Audio Output"      ""
     else
         echo -e "${C_TEAL}  1. Cek Kesehatan HDD/SSD${C_RST}"
         echo -e "${C_TEAL}  2. Cek Status Wi-Fi Card${C_RST}"
-        echo -e "${C_TEAL}  3. Tes Keyboard${C_RST}"
-        echo -e "${C_TEAL}  4. Tes Audio${C_RST}"
+        echo -e "${C_TEAL}  3. Tes Keyboard Input${C_RST}"
+        echo -e "${C_TEAL}  4. Tes Audio Output${C_RST}"
         echo -e "${C_TEAL}  5. Cek Kesehatan Baterai${C_RST}"
         echo -e "${C_TEAL}  6. Cek Program Berat${C_RST}"
         echo -e "${C_TEAL}  0. Keluar${C_RST}"
@@ -227,7 +227,7 @@ run_disk_health() {
         echo "  Fedora        : sudo dnf install smartmontools"
         echo "  Arch          : sudo pacman -S smartmontools"
         echo
-        echo "Setelah terinstall, jalankan kembali menu ini."
+        echo "Setelah terpasang, jalankan kembali menu ini."
         return 1
     fi
 
@@ -529,7 +529,7 @@ run_wifi_check() {
         fi
 
         if [ -n "$signal" ]; then
-            echo "Kekuatan Sinyal: ${signal}%"
+            echo "Signal         : ${signal}%"
             if [ "$signal" -ge 70 ]; then
                 echo "Kualitas       : Kuat"
             elif [ "$signal" -ge 40 ]; then
@@ -549,7 +549,7 @@ run_wifi_check() {
             echo "[WARN] Tidak ada data sinyal untuk $wifi_iface pada saat ini."
         fi
     else
-        echo "[WARN] Tidak dapat membaca kekuatan sinyal (nmcli/iw tidak tersedia)."
+        echo "[WARN] Tidak dapat membaca signal (nmcli/iw tidak tersedia)."
         echo "       Coba install: sudo apt install network-manager"
     fi
 
@@ -877,7 +877,7 @@ run_battery_health() {
         status="" capacity="" full="" design="" cycles=""
 
         read_sys "$bat/status"   status   && echo "Status        : $status"
-        read_sys "$bat/capacity" capacity && echo "Kapasitas kini: ${capacity}%"
+        read_sys "$bat/capacity" capacity && echo "Estimasi kapasitas   : ${capacity}%"
 
         if [ -r "$bat/energy_full" ] && [ -r "$bat/energy_full_design" ]; then
             read_sys "$bat/energy_full" full
@@ -946,7 +946,7 @@ run_process_monitor() {
         }
 
         END {
-            print "--- 10 proses dengan penggunaan CPU tertinggi (rata-rata sejak proses dimulai) ---"
+            print "--- 10 proses dengan beban CPU tertinggi (rata-rata sejak proses dimulai) ---"
             printf "%-8s %-8s %6s %6s  %s\n", "PID", "PPID", "%CPU", "%MEM", "COMMAND"
             for (i = 1; i <= n_top; i++) print top[i]
             print ""
