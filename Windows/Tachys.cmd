@@ -98,7 +98,7 @@ goto :eof
 echo   Pilih toolkit yang ingin dijalankan:
 echo   [s] Buka Windows Security (Virus ^& threat protection)
 echo   1. Cek Kesehatan HDD/SSD         5. Cek Kesehatan Baterai
-echo   2. Cek Wi-Fi ^& Adapter            6. Cek Program Berat
+echo   2. Cek Wi-Fi ^& Adapter          6. Cek Program Berat
 echo   3. Tes Keyboard Input            7. Nonaktifkan Fast Startup
 echo   4. Tes Audio Output              0. Keluar
 echo ==============================================================
@@ -164,7 +164,7 @@ netsh wlan show interfaces > "%TMP_DIR%\wifi.txt" 2>nul
 findstr /i /c:"tidak dapat ditemukan" /c:"tidak ada antarmuka" /c:"not running" /c:"no wireless interface" "%TMP_DIR%\wifi.txt" >nul 2>&1
 if not errorlevel 1 (
     echo [WARN] Tidak ditemukan interface Wi-Fi pada sistem ini.
-    echo        ^(Wajar jika laptop/PC ini tidak memiliki Wi-Fi card, atau adapter/driver-nya mati.^)
+    echo        ^(Wajar jika laptop ini tidak memiliki Wi-Fi card, atau adapter/driver-nya mati.^)
     exit /b 1
 )
 
@@ -195,15 +195,15 @@ powershell -NoProfile -Command ^
     "$ErrorActionPreference = 'SilentlyContinue';" ^
     "$ads = @(Get-NetAdapter -Physical);" ^
     "if ($ads.Count -eq 0) { Write-Host '[WARN] Tidak ada network adapter fisik yang terdeteksi.'; Write-Host '       (Adapter mungkin nonaktif di BIOS/Device Manager atau driver belum terpasang.)'; exit 0 };" ^
-    "$sig = @{}; $cur = '';" ^
-    "foreach ($l in @(netsh wlan show interfaces)) { if ($l -match '^\s*(Name|Nama)\s*:\s*(.+?)\s*$') { $cur = $Matches[2] } elseif ($l -match '^\s*(Signal|Sinyal)\s*:\s*(\d+)') { $sig[$cur] = [int]$Matches[2] } };" ^
+    "$sig = @{}; $sid = @{}; $prf = @{}; $cur = '';" ^
+    "foreach ($l in @(netsh wlan show interfaces)) { if ($l -match '^\s*(Name|Nama)\s*:\s*(.+?)\s*$') { $cur = $Matches[2] } elseif ($l -match '^\s*SSID\s*:\s*(.+?)\s*$') { $sid[$cur] = $Matches[1] } elseif ($l -match '^\s*(Profile|Profil)\s*:\s*(.+?)\s*$') { $prf[$cur] = $Matches[2] } elseif ($l -match '^\s*(Signal|Sinyal)\s*:\s*(\d+)') { $sig[$cur] = [int]$Matches[2] } };" ^
     "foreach ($a in $ads) {" ^
     "  Write-Host '====================================================';" ^
     "  Write-Host ('Adapter        : ' + $a.Name + ' - ' + $a.InterfaceDescription);" ^
     "  $pnp = Get-PnpDevice -InstanceId $a.PnPDeviceID;" ^
     "  if ($pnp) { $ps = [string]$pnp.Status; $ec = [int]$pnp.ConfigManagerErrorCode; if ($ps -eq 'OK' -and $ec -eq 0) { $pt = 'OK (berfungsi normal)' } elseif ($ec -gt 0) { $pt = $ps + ' (kode error Device Manager: ' + $ec + ')' } else { $pt = $ps } } else { $pt = 'Tidak diketahui (device tidak ditemukan di PnP)' };" ^
     "  Write-Host ('PnP Status     : ' + $pt);" ^
-    "  $dd = if ($a.DriverDate) { $a.DriverDate.ToString('yyyy-MM-dd') } else { '-' };" ^
+    "  $dd = '-'; if ($a.DriverDateData) { $dd = [DateTime]::FromFileTime([int64]$a.DriverDateData).ToString('yyyy-MM-dd') } elseif ($a.DriverDate) { $dd = [string]$a.DriverDate };" ^
     "  $dv = if ($a.DriverVersionString) { $a.DriverVersionString } else { '-' };" ^
     "  Write-Host ('Driver         : ' + $a.DriverProvider + ' | versi ' + $dv + ' | tanggal ' + $dd);" ^
     "  Write-Host ('Status Link    : ' + $a.Status);" ^
@@ -271,7 +271,7 @@ if not exist "%KEYTEST_APP%" (
     echo         ke seluruh drive %DRIVE_ROOT%, tapi file tidak ditemukan.
     echo.
     echo [INFO]  Jika file sebelumnya ada lalu hilang, kemungkinan file terhapus
-    echo         atau dikarantina oleh Windows Security ^(Windows Security^).
+    echo         atau dikarantina oleh Windows Security.
     echo.
     echo [SOLUSI]
     echo 1. Unduh ulang aplikasinya melalui tautan berikut:
@@ -324,7 +324,7 @@ copy /y "%KEYTEST_APP%" "%TMP_DIR%\KeyboardTestUtility.exe" >nul 2>&1
 if errorlevel 1 (
     echo [ERROR] Gagal menyalin file ke %TMP_DIR%
     echo         Kemungkinan penyebab: flash drive terlepas, ruang disk penuh,
-    echo         tidak ada izin tulis ke folder temp, atau file baru saja
+    echo         tidak ada izin write ke folder temp, atau file baru saja
     echo         dihapus/dikarantina oleh antivirus lain saat proses ini berjalan.
     echo.
     echo [SOLUSI] Solusi: Matikan Real-time Protection di Windows Security/Antivirus.
@@ -369,7 +369,7 @@ if errorlevel 1 (
         exit /b 1
     )
     echo [INFO] Jika Anda mendengar bunyi beep barusan, output audio berfungsi
-    echo        ^(minimal lewat speaker internal/PC speaker^).
+    echo        ^(minimal lewat internal speaker^).
 ) else (
     echo [INFO] Jika Anda mendengar 2 kali bunyi notifikasi barusan, output audio berfungsi normal.
     echo         Tidak dengar suara? Cek volume/mute, kabel/headphone tersambung
@@ -507,11 +507,10 @@ if errorlevel 3 exit /b 0
 if errorlevel 1 exit /b 1
 
 echo.
-echo [INFO] Perubahan berlaku penuh setelah komputer RESTART (bukan cukup shutdown biasa,
-echo        karena Fast Startup sendiri yang membuat shutdown biasa tidak benar-benar restart).
+echo [INFO] Perubahan berlaku penuh setelah komputer RESTART.
 echo [INFO] Untuk verifikasi manual: Control Panel ^> Power Options ^>
 echo        "Choose what the power buttons do" ^> opsi "Turn on fast startup" seharusnya
-echo        sudah tidak tersedia/tercentang.
+echo        sudah tidak tercentang.
 echo.
 exit /b 0
 

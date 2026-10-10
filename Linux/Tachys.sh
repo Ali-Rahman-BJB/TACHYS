@@ -77,7 +77,7 @@ BANNER
     echo -e "${C_SUB}Student ID  ${C_RST}: 24020115 / 3085417291"
     echo -e "${C_SUB}Grade       ${C_RST}: Grade 12 - Computer and Network Engineering"
     echo -e "${C_SUB}Repository  ${C_RST}: https://github.com/Ali-Rahman-BJB/TACHYS"
-    [ "$ART" = 1 ] || echo -e "${C_SUB}(Perbesar jendela terminal agar banner ASCII tampil)${C_RST}"
+    [ "$ART" = 1 ] || echo -e "${C_SUB}(Perbesar jendela terminal agar tampilan terlihat optimal)${C_RST}"
     blank
     fi
 }
@@ -121,7 +121,7 @@ show_menu() {
     blank
     if [ "$MENU2" = 1 ]; then
         printf "${C_TEAL}  %-30s%s${C_RST}\n" "1. Cek Kesehatan HDD/SSD" "5. Cek Kesehatan Baterai"
-        printf "${C_TEAL}  %-30s%s${C_RST}\n" "2. Cek Status Wi-Fi Card"  "6. Cek Program Berat"
+        printf "${C_TEAL}  %-30s%s${C_RST}\n" "2. Cek Status Wi-Fi Card" "6. Cek Program Berat"
         printf "${C_TEAL}  %-30s%s${C_RST}\n" "3. Tes Keyboard"          "0. Keluar"
         printf "${C_TEAL}  %-30s%s${C_RST}\n" "4. Tes Audio"             ""
     else
@@ -213,7 +213,7 @@ ask_root_for_smart() {
         echo "[WARN] Gagal mendapat akses sudo, melanjutkan tanpa root (data mungkin tidak lengkap)."
     fi
     echo
-}
+};
 
 run_disk_health() {
     echo "[INFO] Memeriksa kesehatan HDD/SSD (SMART) ..."
@@ -477,7 +477,7 @@ run_wifi_check() {
 
     if [ -z "$wifi_iface" ]; then
         echo "[WARN] Tidak ditemukan interface Wi-Fi pada sistem ini."
-        echo "       (Wajar jika laptop/PC ini tidak memiliki Wi-Fi card atau modul Wi-Fi mati.)"
+        echo "       (Wajar jika laptop ini tidak memiliki Wi-Fi card atau modul Wi-Fi mati.)"
 
         local lspci_bin hw_found
         if lspci_bin="$(find_tool lspci)"; then
@@ -728,7 +728,7 @@ download_keyboard_source() {
     done
 
     echo "[ERROR] Gagal mengunduh Keyboard Tester dari GitHub." >&2
-    echo "        Pastikan internet aktif dan 'git' atau 'curl' atau 'wget' terpasang," >&2
+    echo "        Pastikan koneksi internet ada dan 'git' atau 'curl' atau 'wget' terpasang," >&2
     echo "        atau unduh manual: https://github.com/inflex/keyboard-tester" >&2
     return 1
 }
@@ -738,7 +738,7 @@ build_keyboard_tester() {
 
     install_keyboard_deps || return 1
 
-    echo "[INFO] Binary belum ada, membangun dari source: $src"
+    echo "[INFO] Membangun Keyboard Tester dari source: $src"
     if ! gcc -Wall -O2 $(sdl2-config --cflags) "$src" -o "$out" \
             -lm $(sdl2-config --libs) -lSDL2_ttf; then
         echo "[ERROR] Build gagal. Pastikan: sudo apt install build-essential libsdl2-dev libsdl2-ttf-dev"
@@ -798,9 +798,15 @@ run_keyboard_tester() {
     fi
 
     echo "[INFO] Menjalankan Keyboard Tester ..."
-    if ! "$dst_app"; then
-        echo "[ERROR] Keyboard Tester gagal dijalankan atau keluar dengan error."
-        echo "        Jika 'Exec format error', build ulang di mesin ini dengan 'make'."
+    "$dst_app"
+    local rc=$?
+    if [ "$rc" -ne 0 ]; then
+        echo "[ERROR] Keyboard Tester berhenti dengan kode $rc."
+        if [ "$rc" -eq 126 ] || [ "$rc" -eq 127 ]; then
+            echo "        Binary tidak bisa dieksekusi (mungkin dibuat di mesin/arsitektur lain)."
+            echo "        Hapus binary lama 'keyboard-tester' di folder aplikasi, lalu jalankan ulang"
+            echo "        agar dibangun ulang dari source."
+        fi
         return 1
     fi
 
