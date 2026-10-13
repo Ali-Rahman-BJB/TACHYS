@@ -501,7 +501,7 @@ powershell -NoProfile -Command ^
     "if ($null -eq $current) { Write-Host '[INFO] Fast Startup sepertinya sudah tidak aktif di sistem ini (key tidak ditemukan).'; exit 3 };" ^
     "if ($current -eq 0) { Write-Host '[INFO] Fast Startup memang sudah nonaktif sebelumnya.'; exit 3 };" ^
     "Write-Host ('[INFO] Fast Startup saat ini AKTIF (HiberbootEnabled=' + $current + '), sedang dinonaktifkan...');" ^
-    "try { Set-ItemProperty -Path $key -Name HiberbootEnabled -Value 0 -Type DWord -ErrorAction Stop; Write-Host '[OK] Fast Startup berhasil dinonaktifkan (HiberbootEnabled=0).'; exit 0 } catch { Write-Host '[ERROR] Gagal mengubah registry. Pastikan dijalankan sebagai Administrator.'; Write-Host $_.Exception.Message; exit 1 }"
+    "try { Set-ItemProperty -Path $key -Name HiberbootEnabled -Value 0 -Type DWord -ErrorAction Stop; Write-Host '[INFO] Fast Startup berhasil dinonaktifkan (HiberbootEnabled=0).'; exit 0 } catch { Write-Host '[ERROR] Gagal mengubah registry. Pastikan dijalankan sebagai Administrator.'; Write-Host $_.Exception.Message; exit 1 }"
 
 if errorlevel 3 exit /b 0
 if errorlevel 1 exit /b 1
