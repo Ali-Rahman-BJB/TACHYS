@@ -1,4 +1,4 @@
-# TACHYS SCRIPTING
+# TACHYS
 
 <div align="center">
     <p>
@@ -10,221 +10,183 @@
     </p>
 </div>
 
-```text
-▄█████ ██▄  ▄██ ██ ▄█▀   █████▄  ▄████  █████▄  ██   ▄██   ██▄  ▄██ ▄████▄ █████▄  ██████ ▄████▄ █████▄ ██  ██ █████▄  ▄████▄ 
-▀▀▀▄▄▄ ██ ▀▀ ██ ████     ██▄▄█▀ ██  ▄▄▄ ██▄▄██▄ ██    ██   ██ ▀▀ ██ ██▄▄██ ██▄▄██▄   ██   ██▄▄██ ██▄▄█▀ ██  ██ ██▄▄██▄ ██▄▄██ 
-█████▀ ██    ██ ██ ▀█▄   ██      ▀███▀  ██   ██ ██    ██   ██    ██ ██  ██ ██   ██   ██   ██  ██ ██     ▀████▀ ██   ██ ██  ██
-```
+**TACHYS** (ταχύς, bahasa Yunani: "cepat") adalah toolkit diagnostik portabel berbasis *scripting* untuk membantu teknisi, siswa, dan peserta magang memeriksa komponen dasar laptop lewat terminal. Tersedia untuk **Windows** (`Tachys.cmd`) dan **Linux** (`Tachys.sh`), ditulis dengan Batch dan Bash, tanpa compiler dan tanpa instalasi permanen di laptop pelanggan.
 
-**TACHYS** is a portable diagnostic toolkit designed to help technicians, students, and interns perform basic computer component checks through the terminal.
-
-* **Author:** Ali Rahman
-* **Repository:** https://github.com/Ali-Rahman-BJB/TACHYS
-* **School:** SMK PGRI 1 Martapura
-* **Project Status:** Windows support is ready and available; Linux support is provided through installation and uninstallation scripts.
+TACHYS dikembangkan selama Praktik Kerja Lapangan (PKL) di Bandung Computer Banjarbaru untuk mempercepat pemeriksaan awal laptop yang sebelumnya dilakukan manual satu per satu.
 
 ---
 
-## Project Overview
+## Tentang Saya
 
-TACHYS is designed to check basic hardware and software conditions in a simple, fast, and practical way, especially in lab environments, flash drives, or customer service scenarios.
+| | |
+|---|---|
+| **Nama** | Ali Rahman |
+| **Sekolah** | SMK PGRI 1 Martapura |
+| **Peran** | Pembuat dan pengembang TACHYS |
 
-Core features currently available include:
-
-- HDD/SSD health check
-- WiFi status and connectivity check
-- Keyboard test
-- Audio output test
-- Battery health and cycle count check
-- Heavy process / antivirus monitoring
-- Windows Fast Startup disabling
-- Windows Security settings access
+TACHYS saya buat sebagai proyek belajar sekaligus alat bantu praktis untuk pemeriksaan komputer di lab, saat magang, maupun layanan servis.
 
 ---
 
-## Folder Structure
+## Fitur
 
-```text
-TACHYS/
-├── Linux/
-│   ├── Install.sh
-│   ├── Tachys.sh
-│   └── Uninstall.sh
-├── Windows/
-│   ├── Tachys.cmd
-│   └── KMS5.0.cmd
-├── Application/
-│   ├── LINUX/
-│   └── WINDOWS/
-├── readme.md
-├── CONTRIBUTING.md
-├── LICENSE
-└── ...
-```
+Menu pada TACHYS diberi pengaman input, jadi pengguna bebas memilih program mana pun lebih dulu.
 
-### Important folders
+| Menu | Fungsi | Linux | Windows |
+|:---:|---|:---:|:---:|
+| `S` | Buka Windows Security | ❌ | ✅ |
+| `1` | Cek kesehatan HDD/SSD (data SMART) | ✅ | ✅ |
+| `2` | Cek Wi-Fi card dan uji koneksi | ✅ | ✅ |
+| `3` | Tes keyboard | ✅ | ✅ |
+| `4` | Tes audio output | ✅ | ✅ |
+| `5` | Cek kesehatan baterai | ✅ | ✅ |
+| `6` | Cek program berat (CPU/RAM) dan opsi menghentikannya | ✅ | ✅ |
+| `7` | Nonaktifkan Fast Startup | ❌ | ✅ |
+| `0` | Keluar | ✅ | ✅ |
+| — | Script `Install.sh` / `Uninstall.sh` (launcher) | ✅ | ❌ |
 
-- `Linux/Install.sh`  : prepares a desktop launcher so the `.sh` file can be opened in the terminal.
-- `Linux/Uninstall.sh`: removes the launcher that was previously created.
-- `Linux/Tachys.sh`   : main diagnostic script for Linux.
-- `Windows/Tachys.cmd`: main Windows diagnostic script.
-- `Windows/KMS5.0.cmd`: additional Windows/Office activation utility, not part of the main diagnostic menu.
-- `Application/`: contains supporting tools used by the scripts, such as `KeyboardTestUtility.exe` for Windows and the Linux keyboard tester.
+Beberapa batasan keamanan bawaan: TACHYS tidak memuat perintah destruktif, dan program tidak akan mematikan proses sistem maupun proses TACHYS sendiri.
 
 ---
 
-## Requirements
+## Spesifikasi yang Dibutuhkan
 
-### Windows
+### Perangkat dan sistem operasi
 
-Basic requirements:
+| Kebutuhan | Keterangan |
+|---|---|
+| **Jenis perangkat** | Laptop (fitur seperti cek baterai bergantung pada laptop; PC desktop tidak termasuk ruang lingkup) |
+| **Windows** | Windows 10 dan Windows 11 |
+| **Linux** | Ubuntu (diuji pada Ubuntu 26.04.1 LTS) |
+| **Tidak didukung** | Windows 7 dan versi lebih lama, distribusi Linux selain Ubuntu, macOS |
 
-- Windows 10 / 11
-- PowerShell available by default on Windows
-- Command Prompt / PowerShell with enough privileges for certain checks
-- For features like Fast Startup and system settings, it is recommended to run as Administrator
-- For the keyboard tester, the file `KeyboardTestUtility.exe` must exist in `Application\\WINDOWS` or in the appropriate location
+### Media penyimpanan
 
-Notes:
+| Kebutuhan | Keterangan |
+|---|---|
+| **Ukuran TACHYS** | Sekitar 2,08 MB, jadi flash drive berkapasitas berapa pun cukup |
+| **Sistem berkas** | **FAT32** disarankan karena terbaca di Windows, Linux, dan macOS. Sistem berkas lain seperti exFAT, NTFS, Btrfs, XFS, dan ext4 juga bisa |
+| **Perhatian** | Memformat flash drive menghapus semua datanya, cadangkan dulu data penting |
 
-- The main Windows script is `Windows/Tachys.cmd`
-- Some features will ask for Administrator rights or open Windows security settings
-- Disk and battery checks are more accurate when run as Administrator
+### Aplikasi pendukung
 
-### Linux
+| Sistem | Kebutuhan |
+|---|---|
+| **Windows** | Tidak perlu aplikasi tambahan. TACHYS memakai PowerShell dan fitur bawaan Windows. Disarankan menjalankan sebagai administrator bila ada fitur yang diblokir |
+| **Linux** | `bash`, `smartmontools` (`smartctl`) untuk cek HDD/SSD, `alsa-utils` (`speaker-test`) untuk tes audio. `upower` bersifat opsional untuk info baterai tambahan |
+| **Keyboard Tester (Linux)** | Dibangun otomatis memakai `gcc`. Jika dependensi belum lengkap dan ada `sudo`, TACHYS memasangnya lewat `apt`, `dnf`, `pacman`, atau `zypper` |
+| **Git** | Dibutuhkan hanya di laptop teknisi untuk mengunduh TACHYS (`git clone`) dan memperbaruinya (`git pull`) |
 
-Basic requirements:
-
-- Ubuntu/Debian-based Linux or a broadly compatible distribution
-- Bash shell
-- Desktop environment supporting file manager launcher integration
-- `alsa-utils` package if using the audio test via `speaker-test`
-- Write access to `~/.local/share/applications` for the installer launcher
-
-Important notes:
-
-- The main Linux script is `Linux/Tachys.sh`
-- The Linux installer does not install a global app; it only creates a launcher so the `.sh` file can be opened correctly in the terminal
+Pembacaan data SMART di Linux butuh akses `root`/`sudo`. Tanpa itu, TACHYS tetap berjalan tetapi menampilkan peringatan.
 
 ---
 
-## Usage Flow
+## Cara Mengunduh (Git Clone)
 
-### 1. Clone or obtain the project
+Cukup dilakukan sekali di laptop teknisi, langsung ke flash drive.
 
 ```bash
 git clone https://github.com/Ali-Rahman-BJB/TACHYS.git
 cd TACHYS
 ```
 
-You can also copy the project folder to a flash drive or removable media for use on target computers.
+Untuk memperbarui di kemudian hari: `git pull`.
 
 ---
 
-### 2. Windows usage flow
+## Cara Instalasi di Linux
 
-1. Open the `Windows` folder.
-2. Run `Tachys.cmd`.
-3. Choose an option from the menu:
-   - `1` Check HDD/SSD health
-   - `2` Check WiFi card status
-   - `3` Keyboard test
-   - `4` Audio test
-   - `5` Battery health check
-   - `6` Heavy process / antivirus check
-   - `7` Disable Fast Startup
-   - `s` Open Windows Security
-   - `0` Exit
-4. Some features will automatically open PowerShell or relevant Windows settings.
-5. If `KeyboardTestUtility.exe` is missing, the script will guide you to the correct location and solution.
+Installer hanya memasang *launcher* (shortcut) agar file `.sh` bisa dibuka lewat terminal. Tidak ada aplikasi yang dipasang secara global.
 
-Notes:
+1. Jalankan installer dari folder `TACHYS`:
 
-- The `Windows` folder already contains the active diagnostic script ready for Windows use.
-- `KMS5.0.cmd` is an additional utility and is not part of the main TACHYS diagnostic menu.
+   ```bash
+   bash Linux/Install.sh
+   ```
 
----
+   Ketik `Y` saat ditanya. Untuk melewati pertanyaan, pakai `bash Linux/Install.sh --yes`.
 
-### 3. Linux usage flow
+2. Jalankan TACHYS dengan salah satu cara:
+   - Klik kanan `Linux/Tachys.sh`, pilih **Open With** → **Other Application** → **Tachys | SMK PGRI 1 Martapura**, atau
+   - Langsung lewat terminal:
 
-1. Open a terminal in the project folder.
-2. Run:
+     ```bash
+     bash Linux/Tachys.sh
+     ```
 
-```bash
-bash Linux/Install.sh
-```
+3. Jika sudah tidak dipakai, hapus launcher dengan:
 
-3. After installation finishes, open `Linux/Tachys.sh` by:
-   - right-clicking and choosing `Open With` → `Other Application` → select `Tachys (Run in Terminal)`, or
-   - running directly from the terminal:
+   ```bash
+   bash Linux/Uninstall.sh
+   ```
 
-```bash
-bash Linux/Tachys.sh
-```
+## Cara Menjalankan di Windows
 
-4. When no longer needed, run the uninstall script:
+Tidak perlu instalasi. Buka folder `Windows`, lalu klik dua kali `Tachys.cmd`.
 
-```bash
-bash Linux/Uninstall.sh
-```
-
-5. The Linux script checks things such as:
-   - battery health
-   - WiFi card status
-   - audio output
-   - keyboard tester
-   - basic system / hardware information
+Sebelum memakai program lain, jalankan menu **`S`** lebih dulu untuk menyesuaikan Windows Security agar script bisa berjalan.
 
 ---
 
-## Features Already Available
+## Hasil Pengujian
+
+TACHYS diuji pada **11 laptop** (1 Ubuntu dan 10 Windows 10/11) di Bandung Computer Banjarbaru. Hampir seluruh menu berjalan normal di semua laptop yang diuji.
+
+**Perbandingan durasi pemeriksaan awal, manual vs TACHYS:**
+
+| Laptop uji | Manual | TACHYS | Efisiensi |
+|---|:---:|:---:|:---:|
+| ID01 | 766 detik | 85,67 detik | 88,82% |
+| ID02 | 964 detik | 105,5 detik | 89,06% |
+| ID03 | 848 detik | 84,57 detik | 90,03% |
+| **Rata-rata** | **859 detik** | **92 detik** | **89,30%** |
+
+### Kendala yang diketahui
+
+- **Antivirus**: Smadav USB Protect bisa memblokir `Tachys.cmd`. Solusinya jalankan dengan *Run as administrator*. RAV Endpoint Protection pernah menandai PowerShell sebagai *suspicious process* sehingga menu 5 dan 6 tertahan. Pilih **Resume process** pada notifikasi.
+- **Windows Security**: pada sebagian versi Windows, *Virus & Threat Protection* tidak bisa diakses, sehingga menu `S` tidak berfungsi penuh.
+- **Windows 7**: tidak didukung. Menu utama tampil kecil tanpa banner dan seluruh program tidak bisa dijalankan.
+- **Linux**: pengujian terbatas karena laptop Linux jarang ditemui di toko servis.
+
+---
+
+## Tampilan
 
 ### Windows
 
-- HDD/SSD health checks using `Get-PhysicalDisk` and `Get-StorageReliabilityCounter`
-- WiFi and internet connectivity checks
-- Keyboard test using an external utility moved to a temp folder for safety
-- Audio output test via the Windows sound system
-- Battery health and cycle count evaluation
-- Detection of heavy processes and antivirus/security software
-- Fast Startup disabling to normalize shutdown/restart behavior
-- Quick access to Windows Security settings
+![Tampilan depan TACHYS di Windows](Windows.png)
 
 ### Linux
 
-- Runs the keyboard tester from `Application/LINUX/keyboard-tester`
-- Battery checks from `/sys/class/power_supply` and `upower`
-- Audio test using `speaker-test`
-- WiFi interface and link status detection
-- Basic hardware and system information summary
+![Tampilan depan TACHYS di Linux]()
 
 ---
 
-## Limitations
+## Video Tutorial
 
-TACHYS is still a portable diagnostic toolkit intended for basic troubleshooting. Some limitations should be considered:
+Playlist tutorial penggunaan TACHYS ada di sini:
 
-- Linux has mainly been tested on Ubuntu and similar distributions
-- Some Windows features require Administrator rights
-- Hardware data may vary depending on drivers, device type, and system configuration
-- Some external tools, such as the keyboard tester, may require additional files inside `Application/`
+[Tonton di YouTube](https://youtube.com/playlist?list=PLNE-O9vAVa0k&si=0ACbZA3UNMsbmNdk)
 
 ---
 
-## Project Status
+## Laporan Praktik Kerja Lapangan
 
-**Development Status:** Active / Ready for practical use
+Perancangan, flowchart tiap program, kode lengkap, langkah penerapan, dan pengujian TACHYS dibahas lengkap di laporan PKL.
 
-At the moment:
-
-- The Windows diagnostic flow is available and ready in the `Windows` folder
-- Linux already includes an installer, uninstaller, and main script
-- The project continues to evolve with improvements in compatibility and additional features
+📄 **Baca laporan lengkapnya di [alirahman.my.id/docs](https://www.alirahman.my.id/docs)**
 
 ---
 
-## Final Note
+## Lisensi
 
-TACHYS was created to make computer diagnostics faster, more structured, and more practical, especially for technicians, interns, and school-based learning activities such as **SMK PGRI 1 Martapura**.
+TACHYS dirilis dengan lisensi **MIT**. Pengembangan lebih lanjut diperbolehkan sesuai ketentuan lisensi.
 
-It is intended to support basic computer inspection and troubleshooting in a more efficient and organized way.
+---
+
+## Kontak
+
+**Ali Rahman**
+
+- WhatsApp: [+1 (873) 280-0862](https://wa.me/18732800862)
+- Email: [pesan@alirahman.my.id](mailto:pesan@alirahman.my.id)
