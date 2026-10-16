@@ -154,11 +154,11 @@ TACHYS diuji pada **11 laptop** (1 Ubuntu dan 10 Windows 10/11) di Bandung Compu
 
 ### Windows
 
-![Tampilan depan TACHYS di Windows](Windows.png)
+![Tampilan depan TACHYS di Windows](https://github-production-user-asset-6210df.s3.amazonaws.com/215145832/675304906-9668a125-79a7-48b2-af9b-c74dfb32c03e.png?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Credential=AKIAVCODYLSA53PQK4ZA%2F20261016%2Fus-east-1%2Fs3%2Faws4_request&X-Amz-Date=20261016T010518Z&X-Amz-Expires=300&X-Amz-Signature=776a37da486c66319f969f318074c3344f0b4eca7838acaa7f0cbb20d38e95b1&X-Amz-SignedHeaders=host&response-content-type=image%2Fpng)
 
 ### Linux
 
-![Tampilan depan TACHYS di Linux](Linux.png)
+![Tampilan depan TACHYS di Linux](https://github-production-user-asset-6210df.s3.amazonaws.com/215145832/675304864-6ca1944f-a7db-41e9-b282-f8534ca5b9b2.png?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Credential=AKIAVCODYLSA53PQK4ZA%2F20261016%2Fus-east-1%2Fs3%2Faws4_request&X-Amz-Date=20261016T010604Z&X-Amz-Expires=300&X-Amz-Signature=f7144f1a9346f5563698d10e4fc3993e48089d5e9f077ef0d698c57ca566a54c&X-Amz-SignedHeaders=host&response-content-type=image%2Fpng)
 
 ---
 
