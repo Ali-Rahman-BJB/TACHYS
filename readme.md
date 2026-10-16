@@ -158,7 +158,7 @@ TACHYS diuji pada **11 laptop** (1 Ubuntu dan 10 Windows 10/11) di Bandung Compu
 
 ### Linux
 
-![Tampilan depan TACHYS di Linux]()
+![Tampilan depan TACHYS di Linux](Linux.png)
 
 ---
 
