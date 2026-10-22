@@ -364,14 +364,14 @@ if errorlevel 1 (
     echo [WARN] Gagal memutar suara sistem, mencoba system beep sebagai gantinya ...
     powershell -NoProfile -Command "[console]::beep(800,400); Start-Sleep -Milliseconds 100; [console]::beep(1000,400)" >nul 2>&1
     if errorlevel 1 (
-        echo [ERROR] Tidak bisa memutar test output audio sama sekali di sistem ini.
-        echo         Kemungkinan tidak ada output audio yang aktif/terpasang.
+        echo [ERROR] Tidak bisa memutar test audio output sama sekali di sistem ini.
+        echo         Kemungkinan tidak ada audio output yang aktif/terpasang.
         exit /b 1
     )
-    echo [INFO] Jika Anda mendengar bunyi beep barusan, output audio berfungsi
+    echo [INFO] Jika Anda mendengar bunyi beep barusan, audio output berfungsi
     echo        ^(minimal lewat internal speaker^).
 ) else (
-    echo [INFO] Jika Anda mendengar 2 kali bunyi notifikasi barusan, output audio berfungsi normal.
+    echo [INFO] Jika Anda mendengar 2 kali bunyi notifikasi barusan, audio output berfungsi normal.
     echo         Tidak dengar suara? Cek volume/mute, kabel/headphone tersambung
     echo         dengan benar, dan pastikan default output device sudah benar.
 )

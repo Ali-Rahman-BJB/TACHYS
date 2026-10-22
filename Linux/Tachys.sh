@@ -818,7 +818,7 @@ run_keyboard_tester() {
 # 4. AUDIO OUTPUT
 # ============================================================
 run_audio_output_test() {
-    echo "[INFO] Menjalankan tes output audio ..."
+    echo "[INFO] Menjalankan tes audio output ..."
     echo
 
     if ! command -v speaker-test >/dev/null 2>&1; then
@@ -843,12 +843,12 @@ run_audio_output_test() {
     if [ "$rc" -ne 0 ] && [ "$rc" -ne 130 ]; then
         echo
         echo "[ERROR] speaker-test gagal (kode $rc)."
-        echo "        Kemungkinan tidak ada output audio aktif atau driver/sound server bermasalah."
+        echo "        Kemungkinan tidak ada audio output aktif atau driver/sound server bermasalah."
         return 1
     fi
 
     echo
-    echo "[INFO] Jika Anda mendengar suara di kiri lalu kanan, output audio berfungsi normal."
+    echo "[INFO] Jika Anda mendengar suara di kiri lalu kanan, audio output berfungsi normal."
     echo "       Tidak dengar suara? Cek volume/mute, headphone, dan default output device."
     return 0
 }
