@@ -10,7 +10,7 @@ set "DRIVE_ROOT=%~d0\"
 
 if /i "%~1"=="__KEEP_OPEN__" goto :setup_paths
 if "%~1"=="" (
-    echo Menyiapkan Tachys, mohon tunggu sebentar...
+    echo Menyiapkan Program, mohon tunggu sebentar...
     start "" /max "%ComSpec%" /k ""%~f0" __KEEP_OPEN__"
     exit /b 0
 )
@@ -81,34 +81,34 @@ goto :menu_%TIER%
 
 :menu_full
 echo -----------------------------------------------------
-echo         Pilih Toolkit yang ingin dijalankan:
-echo  [s] Buka Windows Security Virus ^& threat protection Settings
-echo   1. Cek Kesehatan HDD/SSD
-echo   2. Cek Status Wi-Fi Card
-echo   3. Tes Keyboard Input
-echo   4. Tes Audio Output
-echo   5. Cek Kesehatan Baterai
-echo   6. Cek Program Berat
-echo   7. Nonaktifkan Fast Startup Control Panel
+echo         Pilih perintah yang ingin dijalankan:
+echo  [s] Windows Security Virus ^& threat protection Settings
+echo   1. Disk Health
+echo   2. Wi-Fi Connectivity
+echo   3. Keyboard Tester
+echo   4. Audio Output
+echo   5. Battery Health
+echo   6. Resource Hogging (CPU ^& Memory)
+echo   7. Fast Startup Control Panel
 echo   8. Reliability Monitor  
 echo   0. Keluar
 echo -----------------------------------------------------
 goto :eof
 
 :menu_compact
-echo   Pilih Toolkit yang ingin dijalankan:
-echo   [s] Buka Windows Security (Virus ^& threat protection)
-echo   1. Cek Kesehatan HDD/SSD         5. Cek Kesehatan Baterai
-echo   2. Cek Wi-Fi                     6. Cek Program Berat
-echo   3. Tes Keyboard Input            7. Nonaktifkan Fast Startup
-echo   4. Tes Audio Output              8. Reliability Monitor
+echo   Pilih perintah yang ingin dijalankan:
+echo   [s] Windows Security (Virus ^& threat protection)
+echo   1. Disk Health               5. Battery Health
+echo   2. Wi-Fi Connectivity        6. Resource Hogging (CPU ^& Memory)
+echo   3. Keyboard Tester           7. Fast Startup Control Panel
+echo   4. Audio Output              8. Reliability Monitor
 echo   0. Keluar
 echo ==============================================================
 goto :eof
 
 :menu_mini
-echo  [s] Win Security  1. HDD/SSD  2. Wi-Fi  3. Keyboard  4. Audio
-echo  5. Baterai  6. Program Berat  7. Fast Startup
+echo  [s] Win Security  1. Disk  2. Wi-Fi  3. Keyboard  4. Audio
+echo  5. Battery  6. Process  7. Fast Startup
 echo  8. Reliability Monitor  0. Keluar
 goto :eof
 
@@ -116,7 +116,7 @@ goto :eof
 :: 1. DISK HEALTH (SSD/HDD) via Get-StorageReliabilityCounter
 :: ============================================================
 :run_disk_health
-echo [INFO] Memeriksa kesehatan HDD/SSD (Storage Reliability Counter) ...
+echo [INFO] Memeriksa kesehatan Disk Perangkat (Storage Reliability Counter) ...
 echo.
 
 powershell -NoProfile -Command ^
@@ -152,10 +152,10 @@ echo       Get-PhysicalDisk ^| Get-StorageReliabilityCounter ^| Select-Object De
 exit /b 0
 
 :: ============================================================
-:: 2. WIFI CHECK
+:: 2. WIFI Connectivity
 :: ============================================================
 :run_wifi_check
-echo [INFO] Memeriksa status Wi-Fi Card ...
+echo [INFO] Memeriksa Wi-Fi Connectivity ...
 echo.
 call :wifi_adapter_detect
 echo [INFO] Detail koneksi Wi-Fi ^(netsh^):
@@ -274,7 +274,7 @@ if not exist "%KEYTEST_APP%" (
     echo         ke seluruh drive %DRIVE_ROOT%, tapi file tidak ditemukan.
     echo.
     echo [INFO]  Jika file sebelumnya ada lalu hilang, kemungkinan file terhapus
-    echo         atau dikarantina oleh Windows Security.
+    echo         atau dikarantina oleh Perangkat Lunak Keamanan.
     echo.
     echo [SOLUSI]
     echo 1. Unduh ulang aplikasinya melalui tautan berikut:
@@ -283,7 +283,7 @@ if not exist "%KEYTEST_APP%" (
     echo 2. Ekstrak/simpan file KeyboardTestUtility.exe ke dalam folder:
     echo    %DRIVE_ROOT%Application\WINDOWS
     echo.
-    echo 3. Pastikan untuk menambahkan 'Exclusion' di Windows Security agar file
+    echo 3. Pastikan untuk menambahkan 'Exclusion' di Perangkat Lunak Keamanan agar file
     echo    tidak terhapus kembali secara otomatis.
     echo.
     exit /b 1
@@ -298,7 +298,7 @@ if "%RTP_STATUS%"=="1" (
     echo [PERINGATAN] Real-Time Protection Windows Security sedang AKTIF.
     echo              KeyboardTestUtility.exe TIDAK akan disalin/dijalankan, supaya
     echo              file aslinya di flash drive tidak ikut dihapus/dikarantina.
-    echo              ^(Menyalin file saja sudah bisa memicu Windows Security
+    echo              ^(Menyalin file saja sudah bisa memicu Perangkat Lunak Keamanan
     echo              memindai lalu menghapus filenya.^)
     echo.
     echo [SOLUSI] Nonaktifkan sementara Real-Time Protection ^(menu 's' di
@@ -349,7 +349,7 @@ exit /b 0
 :: 4. AUDIO OUTPUT
 :: ============================================================
 :run_audio_output_test
-echo [INFO] Memutar suara tes langsung dari komputer, tidak perlu buka Settings ...
+echo [INFO] Memutar audio test langsung dari sistem windows ...
 echo.
 
 powershell -NoProfile -Command ^
@@ -446,10 +446,12 @@ if exist "%BATREPORT%" (
 exit /b 0
 
 :: ============================================================
-:: 6. PROSES BERAT / ANTIVIRUS
+:: 6. RESOURCE HOGGING
 :: ============================================================
 :run_process_monitor
-echo [INFO] Memeriksa proses antivirus / program berat yang berjalan ...
+echo [INFO] Memeriksa process yang berjalan ...
+choice /c YN /n /m "Buka Performance Monitor? [Y/N]: "
+if not errorlevel 2 start "" perfmon.exe
 echo.
 
 powershell -NoProfile -Command ^
