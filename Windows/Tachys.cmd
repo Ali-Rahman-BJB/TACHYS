@@ -450,8 +450,8 @@ exit /b 0
 :: ============================================================
 :run_process_monitor
 echo [INFO] Memeriksa process yang berjalan ...
-choice /c YN /n /m "Buka Performance Monitor? [Y/N]: "
-if not errorlevel 2 start "" perfmon.exe
+choice /c YN /n /m "Buka Resource Monitor? [Y/N]: "
+if not errorlevel 2 start "" resmon.exe
 echo.
 
 powershell -NoProfile -Command ^
