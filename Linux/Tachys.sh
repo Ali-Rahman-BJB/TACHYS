@@ -120,17 +120,17 @@ show_menu() {
     echo -e "${C_SUB}        Pilih Toolkit yang ingin dijalankan:${C_RST}"
     blank
     if [ "$MENU2" = 1 ]; then
-        printf "${C_TEAL}  %-30s%s${C_RST}\n" "1. Cek Kesehatan HDD/SSD" "5. Cek Kesehatan Baterai"
-        printf "${C_TEAL}  %-30s%s${C_RST}\n" "2. Cek Status Wi-Fi Card" "6. Cek Program Berat"
-        printf "${C_TEAL}  %-30s%s${C_RST}\n" "3. Tes Keyboard Input"    "0. Keluar"
-        printf "${C_TEAL}  %-30s%s${C_RST}\n" "4. Tes Audio Output"      ""
+        printf "${C_TEAL}  %-30s%s${C_RST}\n" "1. Disk Health"        "5. Battery Health"
+        printf "${C_TEAL}  %-30s%s${C_RST}\n" "2. Wi-Fi Connectivity" "6. Resource Hogging (CPU & Memory)"
+        printf "${C_TEAL}  %-30s%s${C_RST}\n" "3. Keyboard Tester"    "0. Keluar"
+        printf "${C_TEAL}  %-30s%s${C_RST}\n" "4. Audio Output"       ""
     else
-        echo -e "${C_TEAL}  1. Cek Kesehatan HDD/SSD${C_RST}"
-        echo -e "${C_TEAL}  2. Cek Status Wi-Fi Card${C_RST}"
-        echo -e "${C_TEAL}  3. Tes Keyboard Input${C_RST}"
-        echo -e "${C_TEAL}  4. Tes Audio Output${C_RST}"
-        echo -e "${C_TEAL}  5. Cek Kesehatan Baterai${C_RST}"
-        echo -e "${C_TEAL}  6. Cek Program Berat${C_RST}"
+        echo -e "${C_TEAL}  1. Disk Health${C_RST}"
+        echo -e "${C_TEAL}  2. Wi-Fi Connectivity${C_RST}"
+        echo -e "${C_TEAL}  3. Keyboard Tester${C_RST}"
+        echo -e "${C_TEAL}  4. Audio Output${C_RST}"
+        echo -e "${C_TEAL}  5. Battery Health${C_RST}"
+        echo -e "${C_TEAL}  6. Resource Hogging (CPU & Memory)${C_RST}"
         echo -e "${C_TEAL}  0. Keluar${C_RST}"
     fi
     blank
@@ -216,7 +216,7 @@ ask_root_for_smart() {
 };
 
 run_disk_health() {
-    echo "[INFO] Memeriksa kesehatan HDD/SSD (SMART) ..."
+    echo "[INFO] Memeriksa kesehatan Disk (SMART) ..."
     echo
 
     if ! SMARTCTL_BIN="$(find_tool smartctl)"; then
