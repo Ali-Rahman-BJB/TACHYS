@@ -90,6 +90,7 @@ echo   4. Tes Audio Output
 echo   5. Cek Kesehatan Baterai
 echo   6. Cek Program Berat
 echo   7. Nonaktifkan Fast Startup Control Panel
+echo   8. Reliability Monitor  
 echo   0. Keluar
 echo -----------------------------------------------------
 goto :eof
@@ -100,13 +101,15 @@ echo   [s] Buka Windows Security (Virus ^& threat protection)
 echo   1. Cek Kesehatan HDD/SSD         5. Cek Kesehatan Baterai
 echo   2. Cek Wi-Fi                     6. Cek Program Berat
 echo   3. Tes Keyboard Input            7. Nonaktifkan Fast Startup
-echo   4. Tes Audio Output              0. Keluar
+echo   4. Tes Audio Output              8. Reliability Monitor
+echo   0. Keluar
 echo ==============================================================
 goto :eof
 
 :menu_mini
 echo  [s] Win Security  1. HDD/SSD  2. Wi-Fi  3. Keyboard  4. Audio
-echo  5. Baterai  6. Program Berat  7. Fast Startup  0. Keluar
+echo  5. Baterai  6. Program Berat  7. Fast Startup
+echo  8. Reliability Monitor  0. Keluar
 goto :eof
 
 :: ============================================================
@@ -515,7 +518,19 @@ echo.
 exit /b 0
 
 :: ============================================================
-:: 8. BUKA PENGATURAN REAL-TIME PROTECTION (MANUAL, menu [s])
+:: 8. RELIABILITY MONITOR
+:: ============================================================
+:run_reliability_monitor
+echo [INFO] Membuka Reliability Monitor ...
+start "" perfmon.exe /rel
+if errorlevel 1 (
+    echo [ERROR] Gagal membuka Reliability Monitor.
+    exit /b 1
+)
+exit /b 0
+
+:: ============================================================
+:: BUKA PENGATURAN REAL-TIME PROTECTION (MANUAL, menu [s])
 :: ============================================================
 :run_open_defender_settings
 echo [INFO] Membuka halaman Virus ^& threat protection settings di Windows Security ...
@@ -555,7 +570,7 @@ call :show_banner
 call :show_menu
 
 set "pilihan="
-set /p pilihan="Masukkan pilihan [0-7, s]: "
+set /p pilihan="Masukkan pilihan [0-8, s]: "
 echo.
 if not defined pilihan goto :main
 set "pilihan=%pilihan:"=%"
@@ -574,6 +589,8 @@ if "%pilihan%"=="1" (
     call :run_process_monitor
 ) else if "%pilihan%"=="7" (
     call :run_disable_control_panel_startup
+) else if "%pilihan%"=="8" (
+    call :run_reliability_monitor
 ) else if /i "%pilihan%"=="s" (
     call :run_open_defender_settings
 ) else if "%pilihan%"=="0" (
